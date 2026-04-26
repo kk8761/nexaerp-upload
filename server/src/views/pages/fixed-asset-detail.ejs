@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fixed Asset Detail - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container">
+    <div class="page-header">
+      <h1>Fixed Asset Detail</h1>
+      <div class="actions">
+        <a href="/finance/fixed-assets" class="btn btn-secondary">Back to List</a>
+        <button class="btn btn-primary" onclick="calculateDepreciation()">Calculate Depreciation</button>
+      </div>
+    </div>
+
+    <div id="assetDetail">
+      <p class="text-center">Loading...</p>
+    </div>
+  </div>
+
+  <script>
+    const assetId = '<%= assetId %>';
+    let asset = null;
+
+    async function loadAsset() {
+      try {
+        const response = await fetch(`/api/accounting/fixed-assets/register`);
+        const data = await response.json();
+        
+        if (data.success) {
+          asset = data.register.find(a => a.id === assetId);
+          if (asset) {
+            renderAsset();
+          } else {
+            document.getElementById('assetDetail').innerHTML = '<p class="text-center">Asset not found</p>';
+          }
+        }
+      } catch (error) {
+        console.error('Error loading asset:', error);
+        alert('Failed to load asset');
+      }
+    }
+
+    function renderAsset() {
+      const depreciableAmount = asset.acquisitionCost - asset.salvageValue;
+      const depreciationRate = asset.depreciationMethod === 'straight_line' 
+        ? (depreciableAmount / asset.usefulLife)
+        : (2 / asset.usefulLife);
+
+      document.getElementById('assetDetail').innerHTML = `
+        <div class="card">
+          <div class="card-header">
+            <h2>${asset.name}</h2>
+            <span class="badge badge-${getStatusColor(asset.status)}">${asset.status}</span>
+          </div>
+          
+          <div class="card-body">
+            <div class="detail-grid">
+              <div class="detail-section">
+                <h3>Asset Information</h3>
+                <div class="detail-row">
+                  <span class="label">Asset Number:</span>
+                  <span class="value">${asset.assetNumber}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Name:</span>
+                  <span class="value">${asset.name}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Description:</span>
+                  <span class="value">${asset.description || 'N/A'}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Category:</span>
+                  <span class="value">${asset.category}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Status:</span>
+                  <span class="value">${asset.status}</span>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <h3>Financial Details</h3>
+                <div class="detail-row">
+                  <span class="label">Acquisition Date:</span>
+                  <span class="value">${new Date(asset.acquisitionDate).toLocaleDateString()}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Acquisition Cost:</span>
+                  <span class="value">$${asset.acquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Salvage Value:</span>
+                  <span class="value">$${asset.salvageValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Depreciable Amount:</span>
+                  <span class="value">$${depreciableAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              <div class="detail-section">
+                <h3>Depreciation Details</h3>
+                <div class="detail-row">
+                  <span class="label">Depreciation Method:</span>
+                  <span class="value">${formatDepreciationMethod(asset.depreciationMethod)}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Useful Life:</span>
+                  <span class="value">${asset.usefulLife} months (${(asset.usefulLife / 12).toFixed(1)} years)</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Monthly Depreciation:</span>
+                  <span class="value">$${(depreciableAmount / asset.usefulLife).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Accumulated Depreciation:</span>
+                  <span class="value">$${asset.accumulatedDepreciation.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Net Book Value:</span>
+                  <span class="value"><strong>$${asset.netBookValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></span>
+                </div>
+                <div class="detail-row">
+                  <span class="label">Depreciation %:</span>
+                  <span class="value">${((asset.accumulatedDepreciation / depreciableAmount) * 100).toFixed(2)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header">
+            <h3>Depreciation History</h3>
+          </div>
+          <div class="card-body">
+            ${renderDepreciationHistory()}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderDepreciationHistory() {
+      if (!asset.depreciationEntries || asset.depreciationEntries.length === 0) {
+        return '<p class="text-center">No depreciation entries yet</p>';
+      }
+
+      return `
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Period</th>
+              <th>Depreciation Amount</th>
+              <th>Accumulated Depreciation</th>
+              <th>Net Book Value</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${asset.depreciationEntries.map(entry => `
+              <tr>
+                <td>${entry.period}</td>
+                <td>$${entry.depreciationAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                <td>$${entry.accumulatedDepreciation.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                <td>$${entry.netBookValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                <td>${new Date(entry.createdAt).toLocaleDateString()}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function formatDepreciationMethod(method) {
+      return method === 'straight_line' ? 'Straight Line' : 'Declining Balance';
+    }
+
+    function getStatusColor(status) {
+      switch (status) {
+        case 'active': return 'success';
+        case 'fully_depreciated': return 'warning';
+        case 'disposed': return 'secondary';
+        default: return 'secondary';
+      }
+    }
+
+    async function calculateDepreciation() {
+      try {
+        const period = prompt('Enter period (YYYY-MM):');
+        if (!period) return;
+
+        const response = await fetch(`/api/accounting/fixed-assets/${assetId}/depreciation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ period })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          alert(`Depreciation calculated: $${data.depreciationEntry.depreciationAmount.toFixed(2)}`);
+          loadAsset();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error calculating depreciation:', error);
+        alert('Failed to calculate depreciation');
+      }
+    }
+
+    // Load asset on page load
+    loadAsset();
+  </script>
+
+  <style>
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .detail-section {
+      padding: 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+    }
+
+    .detail-section h3 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      font-size: 1.1rem;
+      color: #333;
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-row .label {
+      font-weight: 500;
+      color: #666;
+    }
+
+    .detail-row .value {
+      color: #333;
+    }
+  </style>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

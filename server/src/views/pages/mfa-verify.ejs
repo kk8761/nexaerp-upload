@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFA Verification - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    body {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+    .mfa-container {
+      max-width: 450px;
+      width: 100%;
+      margin: 20px;
+      padding: 40px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .logo h1 {
+      color: #667eea;
+      font-size: 32px;
+      margin: 0;
+    }
+    .mfa-icon {
+      text-align: center;
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 10px;
+    }
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 14px;
+    }
+    .verification-input {
+      width: 100%;
+      padding: 15px;
+      font-size: 24px;
+      text-align: center;
+      letter-spacing: 8px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      margin: 20px 0;
+      box-sizing: border-box;
+      transition: border-color 0.3s;
+    }
+    .verification-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.3s;
+      margin-top: 10px;
+    }
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    .btn-primary:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: transparent;
+      color: #667eea;
+      border: 2px solid #667eea;
+    }
+    .btn-secondary:hover {
+      background: #f5f7ff;
+    }
+    .alert {
+      padding: 12px 15px;
+      border-radius: 6px;
+      margin: 15px 0;
+      font-size: 14px;
+    }
+    .alert-error {
+      background: #fee;
+      color: #c33;
+      border: 1px solid #fcc;
+    }
+    .alert-success {
+      background: #efe;
+      color: #3c3;
+      border: 1px solid #cfc;
+    }
+    .backup-code-link {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .backup-code-link a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+    }
+    .backup-code-link a:hover {
+      text-decoration: underline;
+    }
+    .loading {
+      display: none;
+      text-align: center;
+      margin: 15px 0;
+    }
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="mfa-container">
+    <div class="logo">
+      <h1>🔐 NexaERP</h1>
+    </div>
+    
+    <div class="mfa-icon">🔒</div>
+    <h2>Two-Factor Authentication</h2>
+    <p class="subtitle">Enter the verification code from your authenticator app</p>
+
+    <div id="message"></div>
+
+    <input 
+      type="text" 
+      class="verification-input" 
+      id="mfa-code" 
+      maxlength="6" 
+      placeholder="000000"
+      autocomplete="off"
+      autofocus
+    >
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <p>Verifying...</p>
+    </div>
+
+    <button class="btn btn-primary" onclick="verifyMFA()" id="verify-btn">
+      Verify Code
+    </button>
+
+    <div class="backup-code-link">
+      <a href="#" onclick="showBackupCodeInput(); return false;">Use backup code instead</a>
+    </div>
+
+    <button class="btn btn-secondary" onclick="logout()">
+      Cancel & Logout
+    </button>
+  </div>
+
+  <script>
+    // Auto-submit when 6 digits are entered
+    document.getElementById('mfa-code').addEventListener('input', function(e) {
+      const value = e.target.value.replace(/\D/g, '');
+      e.target.value = value;
+      
+      if (value.length === 6) {
+        verifyMFA();
+      }
+    });
+
+    // Allow Enter key to submit
+    document.getElementById('mfa-code').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') {
+        verifyMFA();
+      }
+    });
+
+    async function verifyMFA() {
+      const code = document.getElementById('mfa-code').value.trim();
+      
+      if (!code || code.length !== 6) {
+        showMessage('Please enter a 6-digit code', 'error');
+        return;
+      }
+
+      const verifyBtn = document.getElementById('verify-btn');
+      const loading = document.getElementById('loading');
+      
+      verifyBtn.disabled = true;
+      loading.style.display = 'block';
+
+      try {
+        const response = await fetch('/api/auth/mfa/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token: code })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showMessage('Verification successful! Redirecting...', 'success');
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 1000);
+        } else {
+          showMessage(data.message || 'Invalid verification code', 'error');
+          document.getElementById('mfa-code').value = '';
+          document.getElementById('mfa-code').focus();
+          verifyBtn.disabled = false;
+          loading.style.display = 'none';
+        }
+      } catch (error) {
+        console.error('Verification error:', error);
+        showMessage('Verification failed. Please try again.', 'error');
+        verifyBtn.disabled = false;
+        loading.style.display = 'none';
+      }
+    }
+
+    function showBackupCodeInput() {
+      const input = document.getElementById('mfa-code');
+      input.placeholder = 'BACKUP-CODE';
+      input.maxLength = 20;
+      input.style.letterSpacing = '2px';
+      input.value = '';
+      input.focus();
+      
+      showMessage('Enter your backup code', 'success');
+    }
+
+    async function logout() {
+      try {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          credentials: 'include'
+        });
+        window.location.href = '/login';
+      } catch (error) {
+        console.error('Logout error:', error);
+        window.location.href = '/login';
+      }
+    }
+
+    function showMessage(message, type) {
+      const messageDiv = document.getElementById('message');
+      messageDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+      
+      if (type === 'error') {
+        setTimeout(() => {
+          messageDiv.innerHTML = '';
+        }, 5000);
+      }
+    }
+
+    // Check if user is in MFA pending state
+    window.addEventListener('load', async () => {
+      try {
+        const response = await fetch('/api/auth/me', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          // User is already authenticated, redirect to dashboard
+          window.location.href = '/dashboard';
+        }
+      } catch (error) {
+        // Expected if MFA is pending
+      }
+    });
+  </script>
+</body>
+</html>

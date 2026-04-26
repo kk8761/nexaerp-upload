@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFA Setup - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    .mfa-container {
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 30px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .mfa-method {
+      padding: 20px;
+      margin: 15px 0;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .mfa-method:hover {
+      border-color: #2196F3;
+      background: #f5f5f5;
+    }
+    .mfa-method.active {
+      border-color: #2196F3;
+      background: #e3f2fd;
+    }
+    .qr-code {
+      text-align: center;
+      margin: 20px 0;
+    }
+    .qr-code img {
+      max-width: 250px;
+    }
+    .secret-key {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 4px;
+      font-family: monospace;
+      word-break: break-all;
+      margin: 15px 0;
+    }
+    .verification-input {
+      width: 100%;
+      padding: 12px;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 5px;
+      border: 2px solid #e0e0e0;
+      border-radius: 4px;
+      margin: 15px 0;
+    }
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: all 0.3s;
+    }
+    .btn-primary {
+      background: #2196F3;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #1976D2;
+    }
+    .btn-secondary {
+      background: #757575;
+      color: white;
+    }
+    .alert {
+      padding: 15px;
+      border-radius: 4px;
+      margin: 15px 0;
+    }
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+  </style>
+</head>
+<body>
+  <div class="mfa-container">
+    <h1>Multi-Factor Authentication Setup</h1>
+    <p>Enhance your account security by enabling MFA. Choose your preferred method:</p>
+
+    <div id="method-selection">
+      <div class="mfa-method" data-method="totp">
+        <h3>📱 Authenticator App (TOTP)</h3>
+        <p>Use Google Authenticator, Authy, or similar apps</p>
+      </div>
+      <div class="mfa-method" data-method="sms">
+        <h3>📲 SMS Verification</h3>
+        <p>Receive codes via text message</p>
+      </div>
+      <div class="mfa-method" data-method="email">
+        <h3>📧 Email Verification</h3>
+        <p>Receive codes via email</p>
+      </div>
+    </div>
+
+    <div id="totp-setup" style="display: none;">
+      <h2>Setup Authenticator App</h2>
+      <p>Scan this QR code with your authenticator app:</p>
+      <div class="qr-code">
+        <img id="qr-code-img" src="" alt="QR Code">
+      </div>
+      <p>Or enter this secret key manually:</p>
+      <div class="secret-key" id="secret-key"></div>
+      <p>Enter the 6-digit code from your app:</p>
+      <input type="text" class="verification-input" id="totp-code" maxlength="6" placeholder="000000">
+      <div id="message"></div>
+      <button class="btn btn-primary" onclick="verifyTOTP()">Verify & Enable</button>
+      <button class="btn btn-secondary" onclick="goBack()">Back</button>
+    </div>
+
+    <div id="sms-setup" style="display: none;">
+      <h2>Setup SMS Verification</h2>
+      <p>Enter your phone number:</p>
+      <input type="tel" class="verification-input" id="phone-number" placeholder="+1234567890">
+      <button class="btn btn-primary" onclick="sendSMSCode()">Send Code</button>
+      <div id="sms-verify" style="display: none;">
+        <p>Enter the 6-digit code sent to your phone:</p>
+        <input type="text" class="verification-input" id="sms-code" maxlength="6" placeholder="000000">
+        <div id="sms-message"></div>
+        <button class="btn btn-primary" onclick="verifySMS()">Verify & Enable</button>
+      </div>
+      <button class="btn btn-secondary" onclick="goBack()">Back</button>
+    </div>
+
+    <div id="email-setup" style="display: none;">
+      <h2>Setup Email Verification</h2>
+      <p>We'll send a verification code to your registered email.</p>
+      <button class="btn btn-primary" onclick="sendEmailCode()">Send Code</button>
+      <div id="email-verify" style="display: none;">
+        <p>Enter the 6-digit code sent to your email:</p>
+        <input type="text" class="verification-input" id="email-code" maxlength="6" placeholder="000000">
+        <div id="email-message"></div>
+        <button class="btn btn-primary" onclick="verifyEmail()">Verify & Enable</button>
+      </div>
+      <button class="btn btn-secondary" onclick="goBack()">Back</button>
+    </div>
+  </div>
+
+  <script>
+    let selectedMethod = null;
+
+    // Method selection
+    document.querySelectorAll('.mfa-method').forEach(method => {
+      method.addEventListener('click', function() {
+        selectedMethod = this.dataset.method;
+        document.getElementById('method-selection').style.display = 'none';
+        
+        if (selectedMethod === 'totp') {
+          setupTOTP();
+        } else if (selectedMethod === 'sms') {
+          document.getElementById('sms-setup').style.display = 'block';
+        } else if (selectedMethod === 'email') {
+          document.getElementById('email-setup').style.display = 'block';
+        }
+      });
+    });
+
+    function goBack() {
+      document.getElementById('totp-setup').style.display = 'none';
+      document.getElementById('sms-setup').style.display = 'none';
+      document.getElementById('email-setup').style.display = 'none';
+      document.getElementById('method-selection').style.display = 'block';
+      selectedMethod = null;
+    }
+
+    async function setupTOTP() {
+      try {
+        const response = await fetch('/api/auth/mfa/setup', {
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          document.getElementById('qr-code-img').src = data.qrCodeUrl;
+          document.getElementById('secret-key').textContent = data.secret;
+          document.getElementById('totp-setup').style.display = 'block';
+        } else {
+          showMessage('message', data.message, 'error');
+        }
+      } catch (error) {
+        showMessage('message', 'Failed to setup MFA', 'error');
+      }
+    }
+
+    async function verifyTOTP() {
+      const token = document.getElementById('totp-code').value;
+      if (!token || token.length !== 6) {
+        showMessage('message', 'Please enter a 6-digit code', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/mfa/confirm', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ token })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          showMessage('message', 'MFA enabled successfully! Redirecting...', 'success');
+          setTimeout(() => window.location.href = '/dashboard', 2000);
+        } else {
+          showMessage('message', data.message, 'error');
+        }
+      } catch (error) {
+        showMessage('message', 'Verification failed', 'error');
+      }
+    }
+
+    async function sendSMSCode() {
+      const phoneNumber = document.getElementById('phone-number').value;
+      if (!phoneNumber) {
+        showMessage('sms-message', 'Please enter a phone number', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/mfa/sms/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ phoneNumber })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          document.getElementById('sms-verify').style.display = 'block';
+          showMessage('sms-message', 'Code sent successfully!', 'success');
+        } else {
+          showMessage('sms-message', data.message, 'error');
+        }
+      } catch (error) {
+        showMessage('sms-message', 'Failed to send code', 'error');
+      }
+    }
+
+    async function verifySMS() {
+      const code = document.getElementById('sms-code').value;
+      if (!code || code.length !== 6) {
+        showMessage('sms-message', 'Please enter a 6-digit code', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/mfa/sms/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ code })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          showMessage('sms-message', 'MFA enabled successfully! Redirecting...', 'success');
+          setTimeout(() => window.location.href = '/dashboard', 2000);
+        } else {
+          showMessage('sms-message', data.message, 'error');
+        }
+      } catch (error) {
+        showMessage('sms-message', 'Verification failed', 'error');
+      }
+    }
+
+    async function sendEmailCode() {
+      try {
+        const response = await fetch('/api/auth/mfa/email/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include'
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          document.getElementById('email-verify').style.display = 'block';
+          showMessage('email-message', 'Code sent successfully!', 'success');
+        } else {
+          showMessage('email-message', data.message, 'error');
+        }
+      } catch (error) {
+        showMessage('email-message', 'Failed to send code', 'error');
+      }
+    }
+
+    async function verifyEmail() {
+      const code = document.getElementById('email-code').value;
+      if (!code || code.length !== 6) {
+        showMessage('email-message', 'Please enter a 6-digit code', 'error');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/mfa/email/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ code })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+          showMessage('email-message', 'MFA enabled successfully! Redirecting...', 'success');
+          setTimeout(() => window.location.href = '/dashboard', 2000);
+        } else {
+          showMessage('email-message', data.message, 'error');
+        }
+      } catch (error) {
+        showMessage('email-message', 'Verification failed', 'error');
+      }
+    }
+
+    function showMessage(elementId, message, type) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = `<div class="alert alert-${type === 'success' ? 'success' : 'error'}">${message}</div>`;
+    }
+  </script>
+</body>
+</html>

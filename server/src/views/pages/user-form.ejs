@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= mode === 'edit' ? 'Edit User' : 'Create User' %> - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+  <style>
+    .form-container {
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .form-card {
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .form-section {
+      margin-bottom: 2rem;
+    }
+
+    .form-section h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary, #4b5563);
+    }
+
+    .form-group label.required::after {
+      content: ' *';
+      color: #ef4444;
+    }
+
+    .form-control {
+      padding: 0.75rem;
+      border: 1px solid var(--border, #d1d5db);
+      border-radius: 8px;
+      font-size: 0.875rem;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary, #3b82f6);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border, #e5e7eb);
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: var(--primary, #3b82f6);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark, #2563eb);
+    }
+
+    .btn-secondary {
+      background: var(--secondary, #6b7280);
+      color: white;
+    }
+
+    .btn-secondary:hover {
+      background: #4b5563;
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .success {
+      background: #d1fae5;
+      color: #065f46;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary, #6b7280);
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+
+  <div class="form-container">
+    <div class="page-header">
+      <h1><%= mode === 'edit' ? 'Edit User' : 'Create User' %></h1>
+    </div>
+
+    <div id="message" style="display: none;"></div>
+
+    <div class="form-card">
+      <form id="userForm">
+        <div class="form-section">
+          <h2>Basic Information</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="name" class="required">Full Name</label>
+              <input type="text" id="name" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label for="email" class="required">Email</label>
+              <input type="email" id="email" name="email" class="form-control" required>
+            </div>
+            <% if (mode !== 'edit') { %>
+            <div class="form-group">
+              <label for="password" class="required">Password</label>
+              <input type="password" id="password" name="password" class="form-control" required minlength="6">
+            </div>
+            <% } %>
+            <div class="form-group">
+              <label for="phone">Phone</label>
+              <input type="tel" id="phone" name="phone" class="form-control">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h2>Business Information</h2>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="businessName">Business Name</label>
+              <input type="text" id="businessName" name="businessName" class="form-control">
+            </div>
+            <div class="form-group">
+              <label for="businessType">Business Type</label>
+              <select id="businessType" name="businessType" class="form-control">
+                <option value="grocery">Grocery</option>
+                <option value="pharmacy">Pharmacy</option>
+                <option value="restaurant">Restaurant</option>
+                <option value="hostel">Hostel</option>
+                <option value="school">School</option>
+                <option value="retail">Retail</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="plan">Plan</label>
+              <select id="plan" name="plan" class="form-control">
+                <option value="free">Free</option>
+                <option value="basic">Basic</option>
+                <option value="pro">Pro</option>
+                <option value="enterprise">Enterprise</option>
+              </select>
+            </div>
+            <% if (mode === 'edit') { %>
+            <div class="form-group">
+              <label for="isActive">Status</label>
+              <select id="isActive" name="isActive" class="form-control">
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
+              </select>
+            </div>
+            <% } %>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="goBack()">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <%= mode === 'edit' ? 'Update User' : 'Create User' %>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const mode = '<%= mode %>';
+    const userId = '<%= userId || "" %>';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      if (mode === 'edit' && userId) {
+        loadUser();
+      }
+    });
+
+    async function loadUser() {
+      try {
+        const response = await fetch(`/api/users/${userId}`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load user');
+        }
+
+        const result = await response.json();
+        const user = result.data;
+
+        // Populate form
+        document.getElementById('name').value = user.name || '';
+        document.getElementById('email').value = user.email || '';
+        document.getElementById('phone').value = user.phone || '';
+        document.getElementById('businessName').value = user.businessName || '';
+        document.getElementById('businessType').value = user.businessType || 'grocery';
+        document.getElementById('plan').value = user.plan || 'free';
+        document.getElementById('isActive').value = user.isActive ? 'true' : 'false';
+      } catch (error) {
+        showMessage('Failed to load user: ' + error.message, 'error');
+      }
+    }
+
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = {
+        name: document.getElementById('name').value,
+        email: document.getElementById('email').value,
+        phone: document.getElementById('phone').value,
+        businessName: document.getElementById('businessName').value,
+        businessType: document.getElementById('businessType').value,
+        plan: document.getElementById('plan').value
+      };
+
+      if (mode !== 'edit') {
+        formData.password = document.getElementById('password').value;
+      } else {
+        formData.isActive = document.getElementById('isActive').value === 'true';
+      }
+
+      try {
+        const url = mode === 'edit' ? `/api/users/${userId}` : '/api/users';
+        const method = mode === 'edit' ? 'PUT' : 'POST';
+
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to save user');
+        }
+
+        showMessage(
+          mode === 'edit' ? 'User updated successfully' : 'User created successfully',
+          'success'
+        );
+
+        setTimeout(() => {
+          window.location.href = '/users';
+        }, 1500);
+      } catch (error) {
+        showMessage('Failed to save user: ' + error.message, 'error');
+      }
+    });
+
+    function showMessage(message, type) {
+      const messageDiv = document.getElementById('message');
+      messageDiv.textContent = message;
+      messageDiv.className = type;
+      messageDiv.style.display = 'block';
+
+      if (type === 'success') {
+        setTimeout(() => {
+          messageDiv.style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    function goBack() {
+      window.location.href = '/users';
+    }
+  </script>
+</body>
+</html>

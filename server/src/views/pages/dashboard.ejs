@@ -1,0 +1,24 @@
+<!-- Dashboard content will be rendered here -->
+<div class="dashboard-container">
+  <h1>Dashboard</h1>
+  <p>Welcome to NexaERP Dashboard - Server-Side Rendered</p>
+  
+  <div class="dashboard-stats">
+    <div class="stat-card">
+      <h3>Total Revenue</h3>
+      <p class="stat-value">₹<%= stats?.revenue || 0 %></p>
+    </div>
+    <div class="stat-card">
+      <h3>Orders</h3>
+      <p class="stat-value"><%= stats?.orders || 0 %></p>
+    </div>
+    <div class="stat-card">
+      <h3>Customers</h3>
+      <p class="stat-value"><%= stats?.customers || 0 %></p>
+    </div>
+    <div class="stat-card">
+      <h3>Products</h3>
+      <p class="stat-value"><%= stats?.products || 0 %></p>
+    </div>
+  </div>
+</div>

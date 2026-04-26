@@ -1,0 +1,140 @@
+<!-- Module Placeholder Page -->
+<div class="module-placeholder">
+  <div class="placeholder-container">
+    <div class="placeholder-icon">
+      <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+        <path d="M2 17l10 5 10-5"/>
+        <path d="M2 12l10 5 10-5"/>
+      </svg>
+    </div>
+    
+    <h1 class="placeholder-title"><%= moduleName %></h1>
+    <p class="placeholder-description">
+      This module is currently under development as part of the comprehensive ERP enhancement.
+    </p>
+    
+    <div class="placeholder-info">
+      <div class="info-card">
+        <h3>Coming Soon</h3>
+        <p>This feature will be available in the next release</p>
+      </div>
+      
+      <div class="info-card">
+        <h3>Need Help?</h3>
+        <p>Contact support for more information</p>
+      </div>
+    </div>
+    
+    <div class="placeholder-actions">
+      <a href="/dashboard" class="btn btn-primary">Back to Dashboard</a>
+      <a href="/modules" class="btn btn-secondary">View All Modules</a>
+    </div>
+  </div>
+</div>
+
+<style>
+.module-placeholder {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.placeholder-container {
+  max-width: 600px;
+  text-align: center;
+  background: white;
+  padding: 3rem;
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.placeholder-icon {
+  margin: 0 auto 2rem;
+  width: 80px;
+  height: 80px;
+  color: #667eea;
+}
+
+.placeholder-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1a202c;
+  margin-bottom: 1rem;
+}
+
+.placeholder-description {
+  font-size: 1.125rem;
+  color: #4a5568;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.placeholder-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.info-card {
+  background: #f7fafc;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.info-card h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.info-card p {
+  font-size: 0.875rem;
+  color: #718096;
+  margin: 0;
+}
+
+.placeholder-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  display: inline-block;
+}
+
+.btn-primary {
+  background: #667eea;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #5568d3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: white;
+  color: #667eea;
+  border: 2px solid #667eea;
+}
+
+.btn-secondary:hover {
+  background: #f7fafc;
+  transform: translateY(-2px);
+}
+</style>

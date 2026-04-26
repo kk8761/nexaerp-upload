@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Details - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+  <style>
+    .order-detail-container {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: var(--primary, #3b82f6);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: var(--secondary, #6b7280);
+      color: white;
+    }
+
+    .btn-danger {
+      background: #dc2626;
+      color: white;
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 2rem;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border, #e5e7eb);
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 500;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .info-value {
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    .status-draft { background: #e5e7eb; color: #374151; }
+    .status-confirmed { background: #dbeafe; color: #1e40af; }
+    .status-processing { background: #fef3c7; color: #92400e; }
+    .status-shipped { background: #e0e7ff; color: #3730a3; }
+    .status-delivered { background: #d1fae5; color: #065f46; }
+    .status-completed { background: #d1fae5; color: #065f46; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    .items-table th {
+      text-align: left;
+      padding: 0.75rem;
+      background: var(--bg-secondary, #f9fafb);
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-secondary, #6b7280);
+      border-bottom: 1px solid var(--border, #e5e7eb);
+    }
+
+    .items-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border, #e5e7eb);
+      font-size: 0.875rem;
+    }
+
+    .tracking-timeline {
+      position: relative;
+      padding-left: 2rem;
+    }
+
+    .tracking-stage {
+      position: relative;
+      padding-bottom: 1.5rem;
+    }
+
+    .tracking-stage:last-child {
+      padding-bottom: 0;
+    }
+
+    .tracking-stage::before {
+      content: '';
+      position: absolute;
+      left: -1.5rem;
+      top: 0.5rem;
+      width: 1rem;
+      height: 1rem;
+      border-radius: 50%;
+      background: var(--border, #e5e7eb);
+    }
+
+    .tracking-stage.done::before {
+      background: #10b981;
+    }
+
+    .tracking-stage::after {
+      content: '';
+      position: absolute;
+      left: -1.05rem;
+      top: 1.5rem;
+      width: 2px;
+      height: calc(100% - 1rem);
+      background: var(--border, #e5e7eb);
+    }
+
+    .tracking-stage:last-child::after {
+      display: none;
+    }
+
+    .tracking-stage.done::after {
+      background: #10b981;
+    }
+
+    .stage-name {
+      font-weight: 600;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .stage-time {
+      font-size: 0.75rem;
+      color: var(--text-secondary, #6b7280);
+      margin-top: 0.25rem;
+    }
+
+    .totals-section {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 2px solid var(--border, #e5e7eb);
+    }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      font-size: 0.875rem;
+    }
+
+    .total-row.grand-total {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary, #3b82f6);
+      padding-top: 1rem;
+      border-top: 1px solid var(--border, #e5e7eb);
+    }
+
+    .state-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    @media (max-width: 768px) {
+      .content-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+
+  <div class="order-detail-container">
+    <div class="page-header">
+      <h1 id="orderTitle">Order Details</h1>
+      <div class="header-actions">
+        <a href="/orders" class="btn btn-secondary">← Back to Orders</a>
+      </div>
+    </div>
+
+    <div id="error-message" class="error" style="display: none;"></div>
+    <div id="loading" class="loading">Loading order details...</div>
+
+    <div id="orderContent" style="display: none;">
+      <div class="content-grid">
+        <div class="main-content">
+          <!-- Order Information -->
+          <div class="card">
+            <h2 class="card-title">Order Information</h2>
+            <div class="info-row">
+              <span class="info-label">Order Number</span>
+              <span class="info-value" id="orderNo">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Invoice Number</span>
+              <span class="info-value" id="invoiceNo">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Order Date</span>
+              <span class="info-value" id="orderDate">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Status</span>
+              <span class="info-value" id="orderStatus">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Payment Status</span>
+              <span class="info-value" id="paymentStatus">-</span>
+            </div>
+          </div>
+
+          <!-- Customer Information -->
+          <div class="card">
+            <h2 class="card-title">Customer Information</h2>
+            <div class="info-row">
+              <span class="info-label">Name</span>
+              <span class="info-value" id="customerName">-</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Phone</span>
+              <span class="info-value" id="customerPhone">-</span>
+            </div>
+          </div>
+
+          <!-- Order Items -->
+          <div class="card">
+            <h2 class="card-title">Order Items</h2>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th>Quantity</th>
+                  <th>Price</th>
+                  <th>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody id="itemsTableBody">
+              </tbody>
+            </table>
+
+            <div class="totals-section">
+              <div class="total-row">
+                <span>Subtotal</span>
+                <span id="subtotal">-</span>
+              </div>
+              <div class="total-row">
+                <span>Discount</span>
+                <span id="discount">-</span>
+              </div>
+              <div class="total-row">
+                <span>Tax</span>
+                <span id="tax">-</span>
+              </div>
+              <div class="total-row grand-total">
+                <span>Total</span>
+                <span id="total">-</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sidebar">
+          <!-- Order Tracking -->
+          <div class="card">
+            <h2 class="card-title">Order Tracking</h2>
+            <div class="tracking-timeline" id="trackingTimeline">
+            </div>
+          </div>
+
+          <!-- State Actions -->
+          <div class="card">
+            <h2 class="card-title">Actions</h2>
+            <div class="state-actions" id="stateActions">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const orderId = '<%= orderId %>';
+    let currentOrder = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadOrderDetails();
+    });
+
+    async function loadOrderDetails() {
+      try {
+        const response = await fetch(`/api/orders/${orderId}`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load order details');
+
+        const data = await response.json();
+        currentOrder = data.data;
+
+        renderOrderDetails(currentOrder);
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('orderContent').style.display = 'block';
+      } catch (error) {
+        document.getElementById('loading').style.display = 'none';
+        showError('Failed to load order details: ' + error.message);
+      }
+    }
+
+    function renderOrderDetails(order) {
+      document.getElementById('orderTitle').textContent = `Order ${order.orderNo}`;
+      document.getElementById('orderNo').textContent = order.orderNo;
+      document.getElementById('invoiceNo').textContent = order.invoiceNo || '-';
+      document.getElementById('orderDate').textContent = new Date(order.createdAt).toLocaleString();
+      document.getElementById('orderStatus').innerHTML = `<span class="status-badge status-${order.status}">${order.status}</span>`;
+      document.getElementById('paymentStatus').textContent = order.paymentStatus;
+      document.getElementById('customerName').textContent = order.customerName;
+      document.getElementById('customerPhone').textContent = order.customerPhone || '-';
+
+      // Render items
+      const itemsBody = document.getElementById('itemsTableBody');
+      itemsBody.innerHTML = order.items.map(item => `
+        <tr>
+          <td>${escapeHtml(item.productName)}</td>
+          <td>${item.qty} ${item.unit || ''}</td>
+          <td>₹${item.price.toFixed(2)}</td>
+          <td>₹${item.subtotal.toFixed(2)}</td>
+        </tr>
+      `).join('');
+
+      // Render totals
+      document.getElementById('subtotal').textContent = `₹${order.subtotal.toFixed(2)}`;
+      document.getElementById('discount').textContent = `₹${order.discount.toFixed(2)}`;
+      document.getElementById('tax').textContent = `₹${order.taxAmount.toFixed(2)}`;
+      document.getElementById('total').textContent = `₹${order.total.toFixed(2)}`;
+
+      // Render tracking
+      renderTracking(order.trackingStages);
+
+      // Render state actions
+      renderStateActions(order.status);
+    }
+
+    function renderTracking(stages) {
+      const timeline = document.getElementById('trackingTimeline');
+      timeline.innerHTML = stages.map(stage => {
+        const isDone = stage.status === 'done';
+        const timestamp = stage.timestamp ? new Date(stage.timestamp).toLocaleString() : '';
+
+        return `
+          <div class="tracking-stage ${isDone ? 'done' : ''}">
+            <div class="stage-name">${escapeHtml(stage.stage)}</div>
+            ${timestamp ? `<div class="stage-time">${timestamp}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderStateActions(currentStatus) {
+      const actionsDiv = document.getElementById('stateActions');
+      const stateTransitions = {
+        'draft': ['confirmed'],
+        'confirmed': ['processing'],
+        'processing': ['shipped'],
+        'shipped': ['delivered'],
+        'delivered': ['completed'],
+        'completed': [],
+        'cancelled': []
+      };
+
+      const nextStates = stateTransitions[currentStatus] || [];
+      
+      let actionsHtml = '';
+
+      nextStates.forEach(state => {
+        actionsHtml += `
+          <button class="btn btn-primary" onclick="transitionState('${state}')">
+            Mark as ${state.charAt(0).toUpperCase() + state.slice(1)}
+          </button>
+        `;
+      });
+
+      if (currentStatus !== 'completed' && currentStatus !== 'cancelled') {
+        actionsHtml += `
+          <button class="btn btn-danger" onclick="cancelOrder()">
+            Cancel Order
+          </button>
+        `;
+      }
+
+      if (actionsHtml === '') {
+        actionsHtml = '<p style="color: var(--text-secondary);">No actions available</p>';
+      }
+
+      actionsDiv.innerHTML = actionsHtml;
+    }
+
+    async function transitionState(newState) {
+      if (!confirm(`Are you sure you want to mark this order as ${newState}?`)) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/orders/${orderId}/transition`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({ state: newState })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to update order state');
+        }
+
+        // Reload order details
+        await loadOrderDetails();
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    async function cancelOrder() {
+      const reason = prompt('Please enter cancellation reason (optional):');
+      if (reason === null) return; // User clicked cancel
+
+      try {
+        const response = await fetch(`/api/orders/${orderId}/cancel`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify({ reason })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to cancel order');
+        }
+
+        // Reload order details
+        await loadOrderDetails();
+      } catch (error) {
+        showError(error.message);
+      }
+    }
+
+    function showError(message) {
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

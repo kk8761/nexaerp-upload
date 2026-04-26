@@ -1,0 +1,298 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <a href="/crm/opportunities" class="back-link">← Back to Opportunities</a>
+      <h1><%= opportunity.name %></h1>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="editOpportunity()">Edit</button>
+      <button class="btn btn-primary" onclick="convertToQuotation()">Convert to Quotation</button>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <!-- Opportunity Details -->
+    <div class="detail-card">
+      <h2>Opportunity Details</h2>
+      <div class="detail-row">
+        <span class="label">Value:</span>
+        <span class="value">₹<%= opportunity.value.toLocaleString() %></span>
+      </div>
+      <div class="detail-row">
+        <span class="label">Probability:</span>
+        <span class="value"><%= opportunity.probability %>%</span>
+      </div>
+      <div class="detail-row">
+        <span class="label">Weighted Value:</span>
+        <span class="value">₹<%= ((opportunity.value * opportunity.probability) / 100).toLocaleString() %></span>
+      </div>
+      <div class="detail-row">
+        <span class="label">Stage:</span>
+        <span class="value">
+          <select id="stageSelect" onchange="updateStage()" class="stage-select">
+            <option value="prospecting" <%= opportunity.stage === 'prospecting' ? 'selected' : '' %>>Prospecting</option>
+            <option value="qualification" <%= opportunity.stage === 'qualification' ? 'selected' : '' %>>Qualification</option>
+            <option value="proposal" <%= opportunity.stage === 'proposal' ? 'selected' : '' %>>Proposal</option>
+            <option value="negotiation" <%= opportunity.stage === 'negotiation' ? 'selected' : '' %>>Negotiation</option>
+            <option value="closed_won" <%= opportunity.stage === 'closed_won' ? 'selected' : '' %>>Closed Won</option>
+            <option value="closed_lost" <%= opportunity.stage === 'closed_lost' ? 'selected' : '' %>>Closed Lost</option>
+          </select>
+        </span>
+      </div>
+      <div class="detail-row">
+        <span class="label">Expected Close:</span>
+        <span class="value">
+          <% if (opportunity.expectedClose) { %>
+            <%= new Date(opportunity.expectedClose).toLocaleDateString() %>
+          <% } else { %>
+            Not set
+          <% } %>
+        </span>
+      </div>
+      <div class="detail-row">
+        <span class="label">Assigned To:</span>
+        <span class="value">
+          <% if (opportunity.assignedTo) { %>
+            <%= opportunity.assignedTo.name %>
+          <% } else { %>
+            Unassigned
+          <% } %>
+        </span>
+      </div>
+    </div>
+
+    <!-- Lead Information -->
+    <div class="detail-card">
+      <h2>Lead Information</h2>
+      <% if (opportunity.lead) { %>
+        <div class="detail-row">
+          <span class="label">Name:</span>
+          <span class="value"><%= opportunity.lead.firstName %> <%= opportunity.lead.lastName %></span>
+        </div>
+        <% if (opportunity.lead.company) { %>
+          <div class="detail-row">
+            <span class="label">Company:</span>
+            <span class="value"><%= opportunity.lead.company %></span>
+          </div>
+        <% } %>
+        <% if (opportunity.lead.email) { %>
+          <div class="detail-row">
+            <span class="label">Email:</span>
+            <span class="value"><a href="mailto:<%= opportunity.lead.email %>"><%= opportunity.lead.email %></a></span>
+          </div>
+        <% } %>
+        <% if (opportunity.lead.phone) { %>
+          <div class="detail-row">
+            <span class="label">Phone:</span>
+            <span class="value"><a href="tel:<%= opportunity.lead.phone %>"><%= opportunity.lead.phone %></a></span>
+          </div>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Quotations -->
+  <div class="section-card">
+    <h2>Quotations (<%= opportunity.quotations ? opportunity.quotations.length : 0 %>)</h2>
+    <% if (opportunity.quotations && opportunity.quotations.length > 0) { %>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Quote No</th>
+            <th>Status</th>
+            <th>Total</th>
+            <th>Items</th>
+            <th>Created</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% opportunity.quotations.forEach(quote => { %>
+            <tr>
+              <td><%= quote.quoteNo %></td>
+              <td><span class="badge badge-<%= quote.status %>"><%= quote.status.toUpperCase() %></span></td>
+              <td>₹<%= quote.total.toLocaleString() %></td>
+              <td><%= quote.items ? quote.items.length : 0 %> items</td>
+              <td><%= new Date(quote.createdAt).toLocaleDateString() %></td>
+              <td>
+                <button class="btn btn-sm" onclick="viewQuotation('<%= quote.id %>')">View</button>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    <% } else { %>
+      <p class="empty-state">No quotations yet. Convert this opportunity to create a quotation.</p>
+    <% } %>
+  </div>
+
+  <!-- Activities -->
+  <div class="section-card">
+    <h2>Activities (<%= opportunity.activities ? opportunity.activities.length : 0 %>)</h2>
+    <% if (opportunity.activities && opportunity.activities.length > 0) { %>
+      <div class="activities-list">
+        <% opportunity.activities.forEach(activity => { %>
+          <div class="activity-item">
+            <div class="activity-icon <%= activity.type %>"></div>
+            <div class="activity-content">
+              <h4><%= activity.subject %></h4>
+              <p><%= activity.description || '' %></p>
+              <div class="activity-meta">
+                <span class="badge badge-<%= activity.status %>"><%= activity.status %></span>
+                <span>by <%= activity.createdBy ? activity.createdBy.name : 'Unknown' %></span>
+                <span><%= new Date(activity.createdAt).toLocaleDateString() %></span>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } else { %>
+      <p class="empty-state">No activities logged yet.</p>
+    <% } %>
+  </div>
+</div>
+
+<script>
+  const opportunityId = '<%= opportunity.id %>';
+
+  async function updateStage() {
+    const stage = document.getElementById('stageSelect').value;
+    try {
+      const response = await fetch(`/api/crm/opportunities/${opportunityId}/stage`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stage })
+      });
+      const data = await response.json();
+      if (data.success) {
+        showToast('Stage updated successfully', 'success');
+        setTimeout(() => window.location.reload(), 1000);
+      } else {
+        showToast('Failed to update stage', 'error');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast('Error updating stage', 'error');
+    }
+  }
+
+  function editOpportunity() {
+    window.location.href = `/crm/opportunities/${opportunityId}/edit`;
+  }
+
+  function convertToQuotation() {
+    window.location.href = `/crm/opportunities/${opportunityId}/convert`;
+  }
+
+  function viewQuotation(id) {
+    window.location.href = `/crm/quotations/${id}`;
+  }
+
+  function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.getElementById('toast-container').appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+</script>
+
+<style>
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .detail-card, .section-card {
+    background: white;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #eee;
+  }
+
+  .detail-row:last-child {
+    border-bottom: none;
+  }
+
+  .label {
+    font-weight: 600;
+    color: #666;
+  }
+
+  .value {
+    color: #333;
+  }
+
+  .stage-select {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+  }
+
+  .activities-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .activity-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f9f9f9;
+    border-radius: 6px;
+  }
+
+  .activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #007bff;
+  }
+
+  .activity-content h4 {
+    margin: 0 0 0.5rem 0;
+  }
+
+  .activity-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.875rem;
+    color: #666;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: #999;
+  }
+
+  .badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .badge-prospecting { background: #e3f2fd; color: #1976d2; }
+  .badge-qualification { background: #fff3e0; color: #f57c00; }
+  .badge-proposal { background: #f3e5f5; color: #7b1fa2; }
+  .badge-negotiation { background: #fce4ec; color: #c2185b; }
+  .badge-closed_won { background: #e8f5e9; color: #388e3c; }
+  .badge-closed_lost { background: #ffebee; color: #d32f2f; }
+  .badge-draft { background: #f5f5f5; color: #616161; }
+  .badge-sent { background: #e3f2fd; color: #1976d2; }
+  .badge-approved { background: #e8f5e9; color: #388e3c; }
+  .badge-rejected { background: #ffebee; color: #d32f2f; }
+  .badge-planned { background: #fff3e0; color: #f57c00; }
+  .badge-completed { background: #e8f5e9; color: #388e3c; }
+</style>

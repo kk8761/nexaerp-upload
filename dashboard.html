@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — NexaERP</title>
+  <meta name="description" content="NexaERP Enterprise: Procurement, AI Forecasting, Audit Logs, PWA, Barcode & Workflow Automation." />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#6366f1" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/design-system.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/modules.css" />
+  <!-- Backend config — change NEXAERP_API to your Render.com URL -->
+  <script>
+    window.NEXAERP_API    = 'https://nexaerp-api.onrender.com/api';
+    window.NEXAERP_SOCKET = 'https://nexaerp-api.onrender.com';
+  </script>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ── Sidebar ────────────────────────────────────────────── -->
+  <aside class="sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
+    <!-- Logo -->
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+          <rect width="40" height="40" rx="10" fill="url(#sLogoGrad)"/>
+          <path d="M10 20 L20 10 L30 20 L20 30 Z" fill="white" fill-opacity="0.9"/>
+          <path d="M15 20 L20 15 L25 20 L20 25 Z" fill="white"/>
+          <defs>
+            <linearGradient id="sLogoGrad" x1="0" y1="0" x2="40" y2="40">
+              <stop offset="0%" stop-color="#6366f1"/>
+              <stop offset="100%" stop-color="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+      <div class="sidebar-logo-text">
+        <span style="color:var(--color-text-primary)">Nexa</span><span style="background:var(--gradient-brand);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">ERP</span>
+      </div>
+    </div>
+
+    <!-- Branch Selector -->
+    <div class="sidebar-branch-selector" style="padding: 0 16px; margin-bottom: 20px;">
+      <div style="font-size: 10px; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; font-weight: 700;">Active Branch</div>
+      <div class="branch-dropdown" id="branch-dropdown-toggle" onclick="toggleBranchList()">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-success-400);"></div>
+          <span id="current-branch-label" style="font-size: 13px; font-weight: 600; color: var(--color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">All Branches</span>
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
+      <div class="branch-list-container" id="branch-list" style="display:none;">
+        <div class="branch-item" onclick="setBranch('all')">
+          <input type="checkbox" id="br-all" checked> <label for="br-all">All Branches</label>
+        </div>
+        <div class="branch-item" onclick="setBranch('main')">
+          <input type="checkbox" id="br-main"> <label for="br-main">Main Store</label>
+        </div>
+        <div class="branch-item" onclick="setBranch('branch1')">
+          <input type="checkbox" id="br-branch1"> <label for="br-branch1">Warehouse A</label>
+        </div>
+        <div class="branch-item" onclick="setBranch('branch2')">
+          <input type="checkbox" id="br-branch2"> <label for="br-branch2">Retail B</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation -->
+    <nav class="sidebar-nav">
+      <!-- Main -->
+      <div class="nav-section">
+        <div class="nav-section-label">Main</div>
+        <button class="nav-item active" onclick="navigateTo('dashboard')" id="nav-dashboard">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+          </span>
+          <span class="nav-item-label">Dashboard</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('analytics')" id="nav-analytics">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
+          <span class="nav-item-label">Analytics</span>
+        </button>
+      </div>
+
+      <!-- Operations -->
+      <div class="nav-section">
+        <div class="nav-section-label">Operations</div>
+        <button class="nav-item" onclick="navigateTo('pos')" id="nav-pos">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          </span>
+          <span class="nav-item-label">POS / Billing</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('inventory')" id="nav-inventory">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          </span>
+          <span class="nav-item-label">Inventory</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('orders')" id="nav-orders">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+          </span>
+          <span class="nav-item-label">Orders</span>
+          <span class="nav-badge" id="orders-badge">3</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('suppliers')" id="nav-suppliers">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="3" width="15" height="13" rx="1"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          </span>
+          <span class="nav-item-label">Suppliers</span>
+        </button>
+      </div>
+
+      <!-- Finance -->
+      <div class="nav-section">
+        <div class="nav-section-label">Finance</div>
+        <button class="nav-item" onclick="navigateTo('accounting')" id="nav-accounting">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          </span>
+          <span class="nav-item-label">Accounting</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('gst')" id="nav-gst">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </span>
+          <span class="nav-item-label">GST / Tax</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('costcenter')" id="nav-costcenter">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          </span>
+          <span class="nav-item-label">Cost Centers</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('assets')" id="nav-assets">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/></svg>
+          </span>
+          <span class="nav-item-label">Assets</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('payroll')" id="nav-payroll">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+          </span>
+          <span class="nav-item-label">Payroll & HR</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('reports')" id="nav-reports">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
+          <span class="nav-item-label">Reports</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('approvals')" id="nav-approvals">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </span>
+          <span class="nav-item-label">Approvals</span>
+        </button>
+      </div>
+
+
+      <!-- People -->
+      <div class="nav-section">
+        <div class="nav-section-label">People</div>
+        <button class="nav-item" onclick="navigateTo('customers')" id="nav-customers">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </span>
+          <span class="nav-item-label">Customers</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('staff')" id="nav-staff">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          </span>
+          <span class="nav-item-label">Staff</span>
+        </button>
+      </div>
+
+      <!-- Enterprise v3 -->
+      <div class="nav-section">
+        <div class="nav-section-label">Enterprise v3</div>
+        <button class="nav-item" onclick="navigateTo('procurement')" id="nav-procurement">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+          </span>
+          <span class="nav-item-label">Procurement</span>
+          <span class="nav-badge" style="background:var(--color-warning-400)">3</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('stock-transfers')" id="nav-stock-transfers">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>
+          </span>
+          <span class="nav-item-label">Stock Transfers</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('demand-forecast')" id="nav-demand-forecast">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </span>
+          <span class="nav-item-label">AI Forecast</span>
+          <span class="nav-badge" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">AI</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('barcode')" id="nav-barcode">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="2" height="16"/><rect x="7" y="4" width="1" height="16"/><rect x="10" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/><rect x="18" y="4" width="3" height="16"/></svg>
+          </span>
+          <span class="nav-item-label">Barcode</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('audit-logs')" id="nav-audit-logs">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </span>
+          <span class="nav-item-label">Audit Logs</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('automation')" id="nav-automation">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          </span>
+          <span class="nav-item-label">Automation</span>
+          <span class="nav-badge" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">new</span>
+        </button>
+      </div>
+
+      <!-- Enterprise Plus v3.5 -->
+      <div class="nav-section">
+        <div class="nav-section-label">Enterprise Plus v3.5</div>
+        <button class="nav-item" onclick="navigateTo('crm')" id="nav-crm">
+          <span class="nav-item-icon">👥</span>
+          <span class="nav-item-label">CRM & Pipeline</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('hrms')" id="nav-hrms">
+          <span class="nav-item-icon">📅</span>
+          <span class="nav-item-label">HR & Attendance</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('manufacturing')" id="nav-manufacturing">
+          <span class="nav-item-icon">⚙️</span>
+          <span class="nav-item-label">Manufacturing</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('governance')" id="nav-governance">
+          <span class="nav-item-icon">🛡️</span>
+          <span class="nav-item-label">DMS & GRC</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('bi-dashboard')" id="nav-bi-dashboard">
+          <span class="nav-item-icon">📊</span>
+          <span class="nav-item-label">Executive BI</span>
+        </button>
+      </div>
+
+      <!-- System -->
+      <div class="nav-section">
+        <div class="nav-section-label">System</div>
+        <button class="nav-item" onclick="navigateTo('notifications')" id="nav-notifications">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          </span>
+          <span class="nav-item-label">Notifications</span>
+          <span class="nav-badge">5</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('chat')" id="nav-chat">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+          </span>
+          <span class="nav-item-label">Messenger</span>
+          <span class="nav-badge" style="background:var(--color-success-400)">6</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('personnel')" id="nav-personnel">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          </span>
+          <span class="nav-item-label">Personnel</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('settings')" id="nav-settings">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </span>
+          <span class="nav-item-label">Settings</span>
+        </button>
+        <button class="nav-item" onclick="navigateTo('export')" id="nav-export">
+          <span class="nav-item-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </span>
+          <span class="nav-item-label">Export Center</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- User Profile -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user" onclick="navigateTo('settings')" id="sidebar-user-card">
+        <div class="avatar avatar-md" id="user-avatar">AS</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name" id="sidebar-user-name">Arjun Sharma</div>
+          <div class="sidebar-user-role" id="sidebar-user-role">Store Owner</div>
+        </div>
+        <button onclick="handleLogout(event)" class="btn btn-icon btn-ghost" title="Logout" style="flex-shrink:0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Sidebar backdrop (mobile) -->
+  <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeMobileSidebar()"></div>
+
+  <!-- ── Main Content ────────────────────────────────────────── -->
+  <main class="main-content" id="main-content">
+
+    <!-- Top Header -->
+    <header class="top-header">
+      <div class="header-left">
+        <button class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div>
+          <div class="page-title" id="page-title">Dashboard</div>
+          <div class="page-breadcrumb" id="page-breadcrumb">Overview of your business</div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Search -->
+        <div class="header-search">
+          <span class="header-search-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input type="search" class="header-search-input" placeholder="Search products, orders..." id="global-search" />
+        </div>
+
+        <!-- Branch Selector -->
+        <div style="display:flex;align-items:center;padding:2px 8px;background:var(--color-bg-secondary);border:1px solid var(--color-border-subtle);border-radius:var(--radius-full)">
+          <span style="font-size:12px;margin-right:8px;opacity:0.6">📍</span>
+          <select class="form-select" style="width:auto;border:none;background:transparent;padding:4px 24px 4px 4px;font-size:var(--text-xs);font-weight:600" id="store-selector" onchange="handleBranchChange()">
+            <option value="all">Consolidated View</option>
+            <option value="main">Main Branch</option>
+            <option value="branch1">Warehouse A</option>
+            <option value="branch2">Retail B</option>
+          </select>
+        </div>
+
+        <!-- Theme Switcher -->
+        <button class="header-btn" onclick="openThemePicker()" title="Switch Theme" id="theme-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+
+        <!-- Notifications -->
+        <div style="position:relative">
+          <button class="header-btn" id="notif-btn" onclick="toggleNotifications()" aria-label="Notifications">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <span id="notif-badge" style="position:absolute;top:-4px;right:-4px;background:var(--color-danger-400);color:white;border-radius:50%;width:18px;height:18px;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center">0</span>
+          </button>
+          <!-- Notifications Dropdown Panel -->
+          <div id="notif-panel" class="notif-panel" style="display:none;position:absolute;top:calc(100% + 8px);right:0;width:360px;max-height:480px;overflow-y:auto;background:var(--color-bg-elevated);border:1px solid var(--color-border-default);border-radius:var(--radius-xl);box-shadow:var(--shadow-xl);z-index:500">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-4);border-bottom:1px solid var(--color-border-subtle)">
+              <span style="font-weight:700">Notifications</span>
+              <button class="btn btn-sm btn-ghost" onclick="NotificationManager.markAllRead().then(()=>loadNotifPanel())">Mark all read</button>
+            </div>
+            <div id="notif-list"><div style="text-align:center;padding:32px;color:var(--color-text-secondary);font-size:var(--text-sm)">Loading...</div></div>
+          </div>
+        </div>
+
+        <!-- AI Assistant -->
+        <button class="header-btn" onclick="openAIAssistant()" title="AI Assistant" style="background:var(--gradient-brand);border:none;color:white">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Page Body (modules rendered here) ──────────────── -->
+    <div id="page-body" class="page-content">
+      <!-- Dashboard module rendered here by JS -->
+      <div id="dashboard-view"></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- AI Assistant Modal -->
+<div id="ai-modal" class="modal-backdrop" style="display:none">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <div class="flex items-center gap-3">
+        <div style="width:36px;height:36px;background:var(--gradient-brand);border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;font-size:18px">✨</div>
+        <div>
+          <div class="heading-4">NexaAI Assistant</div>
+          <div class="caption">Powered by business intelligence</div>
+        </div>
+      </div>
+      <button class="btn btn-icon btn-ghost" onclick="closeAIAssistant()">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body" style="height:400px;display:flex;flex-direction:column">
+      <div id="ai-chat" style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:12px;padding-bottom:12px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="ai-input" class="form-input" placeholder="Ask about sales, inventory, trends..." onkeydown="if(event.key==='Enter')sendAIMessage()" />
+        <button class="btn btn-primary" onclick="sendAIMessage()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Theme Picker Modal -->
+<div id="theme-picker-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)" onclick="if(event.target===this)this.style.display='none'">
+  <div style="background:var(--color-bg-elevated);border:1px solid var(--color-border-default);border-radius:var(--radius-2xl);padding:var(--space-8);width:480px;max-width:95vw">
+    <div style="font-family:var(--font-display);font-size:var(--text-xl);font-weight:700;margin-bottom:var(--space-6)">🎨 Choose Theme</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:var(--space-3)" id="theme-grid">
+      <!-- Rendered by JS -->
+    </div>
+    <button class="btn btn-ghost btn-full" style="margin-top:var(--space-4)" onclick="document.getElementById('theme-picker-modal').style.display='none'">Close</button>
+  </div>
+</div>
+
+<!-- Socket.io CDN -->
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+
+<script src="js/utils.js"></script>
+<script src="js/demo-data.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/inventory.js"></script>
+<script src="js/pos.js"></script>
+<script src="js/modules.js"></script>
+<script src="js/sap_modules.js"></script>
+<script src="js/enterprise_modules.js"></script>
+<script src="js/enterprise_plus.js"></script>
+<script>
+// PWA — Register Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('[NexaERP] SW registered, scope:', reg.scope);
+        // Listen for sync messages
+        navigator.serviceWorker.addEventListener('message', event => {
+          if (event.data?.type === 'SYNC_REQUESTED') {
+            console.log('[NexaERP] Background sync requested');
+          }
+        });
+      })
+      .catch(err => console.warn('[NexaERP] SW registration failed:', err));
+  });
+}
+// Online/Offline indicator
+window.addEventListener('online', () => Toast?.success?.('🌐 Back online — syncing data...'));
+window.addEventListener('offline', () => Toast?.info?.('📡 Offline mode — using cached data'));
+</script>
+</body>
+</html>

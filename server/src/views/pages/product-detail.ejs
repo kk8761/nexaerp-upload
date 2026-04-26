@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Details - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+
+  <div style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+      <h1>Product Details</h1>
+      <div>
+        <a href="/products" class="btn btn-secondary" style="margin-right: 1rem;">Back to Products</a>
+        <a href="/products/<%= productId %>/edit" class="btn btn-primary">Edit Product</a>
+      </div>
+    </div>
+
+    <div id="productContainer">
+      <p style="text-align: center; padding: 3rem; color: #6b7280;">Loading product...</p>
+    </div>
+  </div>
+
+  <script>
+    const productId = '<%= productId %>';
+
+    document.addEventListener('DOMContentLoaded', loadProduct);
+
+    async function loadProduct() {
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load product');
+
+        const data = await response.json();
+        renderProduct(data.data);
+      } catch (error) {
+        document.getElementById('productContainer').innerHTML = 
+          `<p style="text-align: center; color: #dc2626;">Error: ${error.message}</p>`;
+      }
+    }
+
+    function renderProduct(product) {
+      const container = document.getElementById('productContainer');
+      
+      container.innerHTML = `
+        <div style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 2rem;">
+            <div>
+              <div style="font-size: 8rem; text-align: center; padding: 2rem; background: #f9fafb; border-radius: 8px;">
+                ${product.image || '📦'}
+              </div>
+            </div>
+            <div>
+              <h2 style="margin-bottom: 1rem;">${product.name}</h2>
+              <p style="color: #6b7280; margin-bottom: 1rem;">${product.description || 'No description'}</p>
+              
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 2rem;">
+                <div>
+                  <strong>SKU:</strong> ${product.sku || '-'}
+                </div>
+                <div>
+                  <strong>Barcode:</strong> ${product.barcode || '-'}
+                </div>
+                <div>
+                  <strong>Category:</strong> ${product.category?.name || 'Uncategorized'}
+                </div>
+                <div>
+                  <strong>Brand:</strong> ${product.brand || '-'}
+                </div>
+                <div>
+                  <strong>Price:</strong> ₹${product.price.toFixed(2)}
+                </div>
+                <div>
+                  <strong>Cost:</strong> ₹${product.cost.toFixed(2)}
+                </div>
+                <div>
+                  <strong>Stock:</strong> ${product.stock} ${product.unit}
+                </div>
+                <div>
+                  <strong>Min Stock:</strong> ${product.minStock} ${product.unit}
+                </div>
+                <div>
+                  <strong>GST:</strong> ${product.gst}%
+                </div>
+                <div>
+                  <strong>HSN:</strong> ${product.hsn || '-'}
+                </div>
+              </div>
+
+              ${product.attributes && product.attributes.length > 0 ? `
+                <div style="margin-top: 2rem;">
+                  <h3>Attributes</h3>
+                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem;">
+                    ${product.attributes.map(attr => `
+                      <div>
+                        <strong>${attr.attribute.name}:</strong> ${attr.value}
+                      </div>
+                    `).join('')}
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }
+  </script>
+</body>
+</html>

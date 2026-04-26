@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= mode === 'create' ? 'Add' : 'Edit' %> Fixed Asset - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container">
+    <div class="page-header">
+      <h1><%= mode === 'create' ? 'Add New' : 'Edit' %> Fixed Asset</h1>
+      <a href="/finance/fixed-assets" class="btn btn-secondary">Back to List</a>
+    </div>
+
+    <div class="card">
+      <form id="assetForm">
+        <div class="form-section">
+          <h3>Asset Information</h3>
+          
+          <div class="form-group">
+            <label for="assetNumber">Asset Number</label>
+            <input type="text" id="assetNumber" name="assetNumber" class="form-control" 
+                   placeholder="Auto-generated if left blank">
+          </div>
+
+          <div class="form-group">
+            <label for="name">Asset Name *</label>
+            <input type="text" id="name" name="name" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="description" class="form-control" rows="3"></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="category">Category *</label>
+            <select id="category" name="category" class="form-control" required>
+              <option value="">Select Category</option>
+              <option value="Building">Building</option>
+              <option value="Equipment">Equipment</option>
+              <option value="Vehicle">Vehicle</option>
+              <option value="Furniture">Furniture</option>
+              <option value="Computer">Computer</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>Financial Details</h3>
+          
+          <div class="form-group">
+            <label for="acquisitionDate">Acquisition Date *</label>
+            <input type="date" id="acquisitionDate" name="acquisitionDate" class="form-control" required>
+          </div>
+
+          <div class="form-group">
+            <label for="acquisitionCost">Acquisition Cost *</label>
+            <input type="number" id="acquisitionCost" name="acquisitionCost" class="form-control" 
+                   step="0.01" min="0" required>
+          </div>
+
+          <div class="form-group">
+            <label for="salvageValue">Salvage Value</label>
+            <input type="number" id="salvageValue" name="salvageValue" class="form-control" 
+                   step="0.01" min="0" value="0">
+          </div>
+
+          <div class="form-group">
+            <label for="usefulLife">Useful Life (months) *</label>
+            <input type="number" id="usefulLife" name="usefulLife" class="form-control" 
+                   min="1" required>
+            <small class="form-text">Common values: 12 (1 year), 36 (3 years), 60 (5 years), 120 (10 years)</small>
+          </div>
+
+          <div class="form-group">
+            <label for="depreciationMethod">Depreciation Method *</label>
+            <select id="depreciationMethod" name="depreciationMethod" class="form-control" required>
+              <option value="">Select Method</option>
+              <option value="straight_line">Straight Line</option>
+              <option value="declining_balance">Declining Balance</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h3>GL Account Mapping (Optional)</h3>
+          
+          <div class="form-group">
+            <label for="assetAccountId">Asset Account</label>
+            <select id="assetAccountId" name="assetAccountId" class="form-control">
+              <option value="">Select Account</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="depreciationAccountId">Depreciation Expense Account</label>
+            <select id="depreciationAccountId" name="depreciationAccountId" class="form-control">
+              <option value="">Select Account</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="accumulatedDepAccountId">Accumulated Depreciation Account</label>
+            <select id="accumulatedDepAccountId" name="accumulatedDepAccountId" class="form-control">
+              <option value="">Select Account</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <%= mode === 'create' ? 'Create' : 'Update' %> Asset
+          </button>
+          <a href="/finance/fixed-assets" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const mode = '<%= mode %>';
+    const assetId = '<%= assetId %>';
+
+    async function loadAccounts() {
+      try {
+        const response = await fetch('/api/accounting/accounts');
+        const data = await response.json();
+        
+        if (data.success) {
+          const assetAccounts = data.accounts.filter(a => a.type === 'Asset');
+          const expenseAccounts = data.accounts.filter(a => a.type === 'Expense');
+          
+          populateAccountSelect('assetAccountId', assetAccounts);
+          populateAccountSelect('depreciationAccountId', expenseAccounts);
+          populateAccountSelect('accumulatedDepAccountId', assetAccounts);
+        }
+      } catch (error) {
+        console.error('Error loading accounts:', error);
+      }
+    }
+
+    function populateAccountSelect(selectId, accounts) {
+      const select = document.getElementById(selectId);
+      accounts.forEach(account => {
+        const option = document.createElement('option');
+        option.value = account.id;
+        option.textContent = `${account.accountCode} - ${account.accountName}`;
+        select.appendChild(option);
+      });
+    }
+
+    async function loadAsset() {
+      if (mode === 'edit' && assetId) {
+        try {
+          const response = await fetch(`/api/accounting/fixed-assets/${assetId}`);
+          const data = await response.json();
+          
+          if (data.success) {
+            const asset = data.asset;
+            document.getElementById('assetNumber').value = asset.assetNumber;
+            document.getElementById('name').value = asset.name;
+            document.getElementById('description').value = asset.description || '';
+            document.getElementById('category').value = asset.category;
+            document.getElementById('acquisitionDate').value = asset.acquisitionDate.split('T')[0];
+            document.getElementById('acquisitionCost').value = asset.acquisitionCost;
+            document.getElementById('salvageValue').value = asset.salvageValue;
+            document.getElementById('usefulLife').value = asset.usefulLife;
+            document.getElementById('depreciationMethod').value = asset.depreciationMethod;
+            
+            if (asset.assetAccountId) document.getElementById('assetAccountId').value = asset.assetAccountId;
+            if (asset.depreciationAccountId) document.getElementById('depreciationAccountId').value = asset.depreciationAccountId;
+            if (asset.accumulatedDepAccountId) document.getElementById('accumulatedDepAccountId').value = asset.accumulatedDepAccountId;
+          }
+        } catch (error) {
+          console.error('Error loading asset:', error);
+          alert('Failed to load asset');
+        }
+      }
+    }
+
+    document.getElementById('assetForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const formData = {
+        assetNumber: document.getElementById('assetNumber').value || undefined,
+        name: document.getElementById('name').value,
+        description: document.getElementById('description').value || undefined,
+        category: document.getElementById('category').value,
+        acquisitionDate: document.getElementById('acquisitionDate').value,
+        acquisitionCost: parseFloat(document.getElementById('acquisitionCost').value),
+        salvageValue: parseFloat(document.getElementById('salvageValue').value),
+        usefulLife: parseInt(document.getElementById('usefulLife').value),
+        depreciationMethod: document.getElementById('depreciationMethod').value,
+        assetAccountId: document.getElementById('assetAccountId').value || undefined,
+        depreciationAccountId: document.getElementById('depreciationAccountId').value || undefined,
+        accumulatedDepAccountId: document.getElementById('accumulatedDepAccountId').value || undefined,
+      };
+
+      try {
+        const url = mode === 'create' 
+          ? '/api/accounting/fixed-assets'
+          : `/api/accounting/fixed-assets/${assetId}`;
+        
+        const method = mode === 'create' ? 'POST' : 'PUT';
+        
+        const response = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          alert(`Fixed asset ${mode === 'create' ? 'created' : 'updated'} successfully!`);
+          window.location.href = '/finance/fixed-assets';
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error saving asset:', error);
+        alert('Failed to save asset');
+      }
+    });
+
+    // Load data on page load
+    loadAccounts();
+    if (mode === 'edit') {
+      loadAsset();
+    }
+  </script>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

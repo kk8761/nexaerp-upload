@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fixed Assets - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container">
+    <div class="page-header">
+      <h1>Fixed Asset Register</h1>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="generateDepreciationEntries()">
+          Generate Depreciation Entries
+        </button>
+        <a href="/finance/fixed-assets/new" class="btn btn-primary">Add Fixed Asset</a>
+      </div>
+    </div>
+
+    <div class="filters">
+      <input type="text" id="searchInput" placeholder="Search assets..." class="form-control">
+      <select id="statusFilter" class="form-control">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="fully_depreciated">Fully Depreciated</option>
+        <option value="disposed">Disposed</option>
+      </select>
+      <select id="categoryFilter" class="form-control">
+        <option value="">All Categories</option>
+        <option value="Building">Building</option>
+        <option value="Equipment">Equipment</option>
+        <option value="Vehicle">Vehicle</option>
+        <option value="Furniture">Furniture</option>
+        <option value="Computer">Computer</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <table class="table" id="assetsTable">
+        <thead>
+          <tr>
+            <th>Asset Number</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Acquisition Date</th>
+            <th>Acquisition Cost</th>
+            <th>Depreciation Method</th>
+            <th>Accumulated Depreciation</th>
+            <th>Net Book Value</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="assetsTableBody">
+          <tr>
+            <td colspan="10" class="text-center">Loading...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    let assets = [];
+
+    async function loadAssets() {
+      try {
+        const response = await fetch('/api/accounting/fixed-assets/register');
+        const data = await response.json();
+        
+        if (data.success) {
+          assets = data.register;
+          renderAssets(assets);
+        }
+      } catch (error) {
+        console.error('Error loading assets:', error);
+        alert('Failed to load fixed assets');
+      }
+    }
+
+    function renderAssets(assetsToRender) {
+      const tbody = document.getElementById('assetsTableBody');
+      
+      if (assetsToRender.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center">No fixed assets found</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = assetsToRender.map(asset => `
+        <tr>
+          <td><a href="/finance/fixed-assets/${asset.id}">${asset.assetNumber}</a></td>
+          <td>${asset.name}</td>
+          <td>${asset.category}</td>
+          <td>${new Date(asset.acquisitionDate).toLocaleDateString()}</td>
+          <td>$${asset.acquisitionCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+          <td>${formatDepreciationMethod(asset.depreciationMethod)}</td>
+          <td>$${asset.accumulatedDepreciation.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+          <td>$${asset.netBookValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+          <td><span class="badge badge-${getStatusColor(asset.status)}">${asset.status}</span></td>
+          <td>
+            <a href="/finance/fixed-assets/${asset.id}" class="btn btn-sm btn-secondary">View</a>
+            ${asset.status === 'active' ? `<button class="btn btn-sm btn-primary" onclick="calculateDepreciation('${asset.id}')">Depreciate</button>` : ''}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function formatDepreciationMethod(method) {
+      return method === 'straight_line' ? 'Straight Line' : 'Declining Balance';
+    }
+
+    function getStatusColor(status) {
+      switch (status) {
+        case 'active': return 'success';
+        case 'fully_depreciated': return 'warning';
+        case 'disposed': return 'secondary';
+        default: return 'secondary';
+      }
+    }
+
+    function filterAssets() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const statusFilter = document.getElementById('statusFilter').value;
+      const categoryFilter = document.getElementById('categoryFilter').value;
+
+      const filtered = assets.filter(asset => {
+        const matchesSearch = asset.name.toLowerCase().includes(searchTerm) || 
+                            asset.assetNumber.toLowerCase().includes(searchTerm);
+        const matchesStatus = !statusFilter || asset.status === statusFilter;
+        const matchesCategory = !categoryFilter || asset.category === categoryFilter;
+        
+        return matchesSearch && matchesStatus && matchesCategory;
+      });
+
+      renderAssets(filtered);
+    }
+
+    async function calculateDepreciation(assetId) {
+      try {
+        const period = prompt('Enter period (YYYY-MM):');
+        if (!period) return;
+
+        const response = await fetch(`/api/accounting/fixed-assets/${assetId}/depreciation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ period })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          alert(`Depreciation calculated: $${data.depreciationEntry.depreciationAmount.toFixed(2)}`);
+          loadAssets();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error calculating depreciation:', error);
+        alert('Failed to calculate depreciation');
+      }
+    }
+
+    async function generateDepreciationEntries() {
+      try {
+        const period = prompt('Enter period (YYYY-MM):');
+        if (!period) return;
+
+        const response = await fetch('/api/accounting/fixed-assets/depreciation/generate-entries', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ period })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          alert(data.message);
+          loadAssets();
+        } else {
+          alert('Error: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error generating depreciation entries:', error);
+        alert('Failed to generate depreciation entries');
+      }
+    }
+
+    // Event listeners
+    document.getElementById('searchInput').addEventListener('input', filterAssets);
+    document.getElementById('statusFilter').addEventListener('change', filterAssets);
+    document.getElementById('categoryFilter').addEventListener('change', filterAssets);
+
+    // Load assets on page load
+    loadAssets();
+  </script>
+
+  <%- include('../partials/footer') %>
+</body>
+</html>

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Budget - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+  <style>
+    .form-container {
+      background: white;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .form-section {
+      margin-bottom: 2rem;
+    }
+    .form-section h3 {
+      margin: 0 0 1rem 0;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .form-group label {
+      font-weight: 500;
+      color: #333;
+    }
+    .form-group input,
+    .form-group select {
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+    .line-items-section {
+      margin-top: 2rem;
+    }
+    .line-item {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr auto;
+      gap: 1rem;
+      align-items: end;
+      margin-bottom: 1rem;
+      padding: 1rem;
+      background: #f9f9f9;
+      border-radius: 4px;
+    }
+    .btn-remove {
+      background: #d32f2f;
+      color: white;
+      border: none;
+      padding: 0.75rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .btn-remove:hover {
+      background: #b71c1c;
+    }
+    .btn-add {
+      background: #1976d2;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 1rem;
+    }
+    .btn-add:hover {
+      background: #1565c0;
+    }
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      justify-content: flex-end;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 2px solid #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <button class="btn btn-secondary" onclick="window.location.href='/finance/budgets'">
+          ← Back to Budgets
+        </button>
+        <h1 style="margin-top: 1rem;">Create Budget</h1>
+      </div>
+    </div>
+
+    <div class="form-container">
+      <form id="budgetForm" onsubmit="handleSubmit(event)">
+        <!-- Basic Information -->
+        <div class="form-section">
+          <h3>Basic Information</h3>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="name">Budget Name *</label>
+              <input type="text" id="name" name="name" required placeholder="e.g., 2024 Annual Budget">
+            </div>
+            <div class="form-group">
+              <label for="fiscalYear">Fiscal Year *</label>
+              <input type="text" id="fiscalYear" name="fiscalYear" required placeholder="e.g., 2024">
+            </div>
+            <div class="form-group">
+              <label for="startDate">Start Date *</label>
+              <input type="date" id="startDate" name="startDate" required>
+            </div>
+            <div class="form-group">
+              <label for="endDate">End Date *</label>
+              <input type="date" id="endDate" name="endDate" required>
+            </div>
+          </div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="form-section line-items-section">
+          <h3>Budget Line Items</h3>
+          <p style="color: #666; margin-bottom: 1rem;">
+            Add budget line items for each account and period. You can add multiple periods for the same account.
+          </p>
+          
+          <div id="lineItemsContainer">
+            <!-- Line items will be added here dynamically -->
+          </div>
+          
+          <button type="button" class="btn-add" onclick="addLineItem()">
+            ➕ Add Line Item
+          </button>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" onclick="window.location.href='/finance/budgets'">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-primary">
+            Create Budget
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script>
+    let accounts = [];
+    let lineItemCounter = 0;
+
+    async function loadAccounts() {
+      try {
+        const response = await fetch('/api/accounting/accounts');
+        const data = await response.json();
+        
+        if (data.success) {
+          accounts = data.accounts || [];
+        }
+      } catch (error) {
+        console.error('Error loading accounts:', error);
+      }
+    }
+
+    function addLineItem() {
+      const container = document.getElementById('lineItemsContainer');
+      const itemId = lineItemCounter++;
+      
+      const lineItem = document.createElement('div');
+      lineItem.className = 'line-item';
+      lineItem.id = `lineItem-${itemId}`;
+      lineItem.innerHTML = `
+        <div class="form-group">
+          <label>Account *</label>
+          <select name="accountId[]" required>
+            <option value="">Select Account</option>
+            ${accounts.map(acc => `
+              <option value="${acc.id}">${acc.accountCode} - ${acc.name}</option>
+            `).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Period *</label>
+          <input type="text" name="period[]" required placeholder="YYYY-MM" pattern="\\d{4}-\\d{2}">
+        </div>
+        <div class="form-group">
+          <label>Budgeted Amount *</label>
+          <input type="number" name="budgetedAmount[]" required step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label>Cost Center</label>
+          <input type="text" name="costCenter[]" placeholder="Optional">
+        </div>
+        <button type="button" class="btn-remove" onclick="removeLineItem(${itemId})">
+          🗑️
+        </button>
+      `;
+      
+      container.appendChild(lineItem);
+    }
+
+    function removeLineItem(itemId) {
+      const lineItem = document.getElementById(`lineItem-${itemId}`);
+      if (lineItem) {
+        lineItem.remove();
+      }
+    }
+
+    async function handleSubmit(event) {
+      event.preventDefault();
+      
+      const formData = new FormData(event.target);
+      
+      // Build line items array
+      const accountIds = formData.getAll('accountId[]');
+      const periods = formData.getAll('period[]');
+      const budgetedAmounts = formData.getAll('budgetedAmount[]');
+      const costCenters = formData.getAll('costCenter[]');
+      
+      if (accountIds.length === 0) {
+        alert('Please add at least one budget line item');
+        return;
+      }
+      
+      const lineItems = accountIds.map((accountId, index) => ({
+        accountId,
+        period: periods[index],
+        budgetedAmount: parseFloat(budgetedAmounts[index]),
+        costCenter: costCenters[index] || undefined,
+      }));
+      
+      const budgetData = {
+        name: formData.get('name'),
+        fiscalYear: formData.get('fiscalYear'),
+        startDate: new Date(formData.get('startDate')),
+        endDate: new Date(formData.get('endDate')),
+        lineItems,
+      };
+      
+      try {
+        const response = await fetch('/api/accounting/budgets', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(budgetData)
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('Budget created successfully!');
+          window.location.href = `/finance/budgets/${data.budget.id}`;
+        } else {
+          alert(data.message || 'Failed to create budget');
+        }
+      } catch (error) {
+        console.error('Error creating budget:', error);
+        alert('Failed to create budget');
+      }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadAccounts();
+      
+      // Set default dates
+      const today = new Date();
+      const startOfYear = new Date(today.getFullYear(), 0, 1);
+      const endOfYear = new Date(today.getFullYear(), 11, 31);
+      
+      document.getElementById('startDate').valueAsDate = startOfYear;
+      document.getElementById('endDate').valueAsDate = endOfYear;
+      document.getElementById('fiscalYear').value = today.getFullYear().toString();
+      
+      // Add first line item
+      addLineItem();
+    });
+  </script>
+</body>
+</html>

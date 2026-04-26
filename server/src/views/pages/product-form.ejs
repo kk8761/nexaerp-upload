@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= mode === 'create' ? 'Create' : 'Edit' %> Product - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+
+  <div style="padding: 2rem; max-width: 900px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+      <h1><%= mode === 'create' ? 'Create' : 'Edit' %> Product</h1>
+      <a href="/products" class="btn btn-secondary">Cancel</a>
+    </div>
+
+    <div id="error-message" style="display: none; background: #fee2e2; color: #991b1b; padding: 1rem; border-radius: 8px; margin-bottom: 1rem;"></div>
+
+    <form id="productForm" style="background: white; border-radius: 12px; padding: 2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+      <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem;">
+        <div style="grid-column: 1 / -1;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Product Name *</label>
+          <input type="text" name="name" required style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">SKU</label>
+          <input type="text" name="sku" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Barcode</label>
+          <input type="text" name="barcode" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Category</label>
+          <select name="categoryId" id="categorySelect" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+            <option value="">Select Category</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Unit</label>
+          <input type="text" name="unit" value="pcs" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Price *</label>
+          <input type="number" name="price" step="0.01" required style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Cost *</label>
+          <input type="number" name="cost" step="0.01" required style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Stock</label>
+          <input type="number" name="stock" value="0" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Min Stock</label>
+          <input type="number" name="minStock" value="10" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">GST %</label>
+          <select name="gst" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+            <option value="0">0%</option>
+            <option value="5">5%</option>
+            <option value="12" selected>12%</option>
+            <option value="18">18%</option>
+            <option value="28">28%</option>
+          </select>
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">HSN Code</label>
+          <input type="text" name="hsn" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Brand</label>
+          <input type="text" name="brand" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div>
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Location</label>
+          <input type="text" name="location" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;">
+        </div>
+
+        <div style="grid-column: 1 / -1;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 500;">Description</label>
+          <textarea name="description" rows="3" style="width: 100%; padding: 0.625rem; border: 1px solid #d1d5db; border-radius: 6px;"></textarea>
+        </div>
+      </div>
+
+      <div style="margin-top: 2rem; display: flex; gap: 1rem; justify-content: flex-end;">
+        <a href="/products" class="btn btn-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">
+          <%= mode === 'create' ? 'Create' : 'Update' %> Product
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <script>
+    const mode = '<%= mode %>';
+    const productId = '<%= productId %>';
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await loadCategories();
+      
+      if (mode === 'edit' && productId) {
+        await loadProduct();
+      }
+    });
+
+    async function loadCategories() {
+      try {
+        const response = await fetch('/api/products/categories', {
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load categories');
+
+        const data = await response.json();
+        const select = document.getElementById('categorySelect');
+        
+        data.data.categories.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.id;
+          option.textContent = cat.name;
+          select.appendChild(option);
+        });
+      } catch (error) {
+        console.error('Error loading categories:', error);
+      }
+    }
+
+    async function loadProduct() {
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load product');
+
+        const data = await response.json();
+        const product = data.data;
+
+        // Populate form
+        document.querySelector('[name="name"]').value = product.name;
+        document.querySelector('[name="sku"]').value = product.sku || '';
+        document.querySelector('[name="barcode"]').value = product.barcode || '';
+        document.querySelector('[name="categoryId"]').value = product.categoryId || '';
+        document.querySelector('[name="unit"]').value = product.unit;
+        document.querySelector('[name="price"]').value = product.price;
+        document.querySelector('[name="cost"]').value = product.cost;
+        document.querySelector('[name="stock"]').value = product.stock;
+        document.querySelector('[name="minStock"]').value = product.minStock;
+        document.querySelector('[name="gst"]').value = product.gst;
+        document.querySelector('[name="hsn"]').value = product.hsn || '';
+        document.querySelector('[name="brand"]').value = product.brand || '';
+        document.querySelector('[name="location"]').value = product.location || '';
+        document.querySelector('[name="description"]').value = product.description || '';
+      } catch (error) {
+        showError('Failed to load product: ' + error.message);
+      }
+    }
+
+    document.getElementById('productForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+
+      // Convert numeric fields
+      data.price = parseFloat(data.price);
+      data.cost = parseFloat(data.cost);
+      data.stock = parseInt(data.stock);
+      data.minStock = parseInt(data.minStock);
+      data.gst = parseFloat(data.gst);
+
+      // Remove empty categoryId
+      if (!data.categoryId) delete data.categoryId;
+
+      try {
+        const url = mode === 'create' 
+          ? '/api/products' 
+          : `/api/products/${productId}`;
+        
+        const method = mode === 'create' ? 'POST' : 'PUT';
+
+        const response = await fetch(url, {
+          method,
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          credentials: 'include',
+          body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.message || 'Failed to save product');
+        }
+
+        window.location.href = '/products';
+      } catch (error) {
+        showError(error.message);
+      }
+    });
+
+    function showError(message) {
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+  </script>
+</body>
+</html>

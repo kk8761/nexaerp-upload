@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= title || 'NexaERP — Enterprise Business Management' %></title>
+  <meta name="description" content="<%= description || 'NexaERP is an enterprise-grade ERP platform for comprehensive business management.' %>" />
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  
+  <!-- Design System CSS -->
+  <link rel="stylesheet" href="/css/design-system.css" />
+  
+  <!-- Page-specific CSS -->
+  <%- pageStyles || '' %>
+</head>
+<body class="<%= bodyClass || '' %>">
+  
+  <%- include('../partials/header') %>
+  
+  <!-- Main Content -->
+  <main id="main-content">
+    <%- body %>
+  </main>
+  
+  <%- include('../partials/footer') %>
+  
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  
+  <!-- Core JavaScript -->
+  <script src="/js/utils.js"></script>
+  
+  <!-- Page-specific JavaScript -->
+  <%- pageScripts || '' %>
+</body>
+</html>

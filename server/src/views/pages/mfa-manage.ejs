@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MFA Management - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <style>
+    body {
+      background: #f5f7fa;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .header {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+    .header h1 {
+      margin: 0 0 10px 0;
+      color: #333;
+    }
+    .header p {
+      margin: 0;
+      color: #666;
+    }
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    .card h2 {
+      margin: 0 0 20px 0;
+      color: #333;
+      font-size: 20px;
+    }
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-left: 10px;
+    }
+    .status-enabled {
+      background: #d4edda;
+      color: #155724;
+    }
+    .status-disabled {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    .mfa-method {
+      padding: 20px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .mfa-method.active {
+      border-color: #28a745;
+      background: #f0fff4;
+    }
+    .method-info {
+      flex: 1;
+    }
+    .method-info h3 {
+      margin: 0 0 5px 0;
+      font-size: 18px;
+      color: #333;
+    }
+    .method-info p {
+      margin: 0;
+      color: #666;
+      font-size: 14px;
+    }
+    .method-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #5568d3;
+    }
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    .btn-danger:hover {
+      background: #c82333;
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    .btn-outline {
+      background: transparent;
+      border: 2px solid #667eea;
+      color: #667eea;
+    }
+    .btn-outline:hover {
+      background: #667eea;
+      color: white;
+    }
+    .backup-codes {
+      background: #f8f9fa;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    .backup-codes h3 {
+      margin: 0 0 15px 0;
+      font-size: 16px;
+      color: #333;
+    }
+    .codes-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .code-item {
+      background: white;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 14px;
+      text-align: center;
+      border: 1px solid #dee2e6;
+    }
+    .alert {
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .alert-error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .alert-warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeaa7;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal.active {
+      display: flex;
+    }
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-content h2 {
+      margin: 0 0 20px 0;
+    }
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/dashboard" class="back-link">← Back to Dashboard</a>
+    
+    <div class="header">
+      <h1>🔐 Multi-Factor Authentication</h1>
+      <p>Manage your account security settings</p>
+    </div>
+
+    <div id="message"></div>
+
+    <div class="card">
+      <h2>
+        MFA Status
+        <span class="status-badge" id="mfa-status-badge">Loading...</span>
+      </h2>
+      
+      <div id="mfa-methods">
+        <p>Loading MFA settings...</p>
+      </div>
+    </div>
+
+    <div class="card" id="backup-codes-section" style="display: none;">
+      <div class="backup-codes">
+        <h3>🔑 Backup Codes</h3>
+        <p style="margin-bottom: 15px; color: #666; font-size: 14px;">
+          Save these codes in a secure location. Each code can only be used once.
+        </p>
+        <div class="codes-grid" id="backup-codes-grid">
+          <!-- Backup codes will be inserted here -->
+        </div>
+        <button class="btn btn-secondary" onclick="downloadBackupCodes()">
+          Download Codes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Disable MFA Modal -->
+  <div class="modal" id="disable-modal">
+    <div class="modal-content">
+      <h2>Disable Multi-Factor Authentication</h2>
+      <div class="alert alert-warning">
+        <strong>Warning:</strong> Disabling MFA will make your account less secure.
+      </div>
+      <div class="form-group">
+        <label for="password-confirm">Enter your password to confirm:</label>
+        <input type="password" id="password-confirm" placeholder="Your password">
+      </div>
+      <div id="disable-message"></div>
+      <div style="display: flex; gap: 10px; margin-top: 20px;">
+        <button class="btn btn-danger" onclick="confirmDisableMFA()">Disable MFA</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentMFASettings = null;
+
+    // Load MFA settings on page load
+    window.addEventListener('load', loadMFASettings);
+
+    async function loadMFASettings() {
+      try {
+        const response = await fetch('/api/auth/mfa/status', {
+          credentials: 'include'
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to load MFA settings');
+        }
+        
+        const data = await response.json();
+        currentMFASettings = data;
+        
+        renderMFAStatus(data);
+      } catch (error) {
+        console.error('Error loading MFA settings:', error);
+        showMessage('Failed to load MFA settings', 'error');
+      }
+    }
+
+    function renderMFAStatus(data) {
+      const statusBadge = document.getElementById('mfa-status-badge');
+      const methodsContainer = document.getElementById('mfa-methods');
+      
+      if (data.enabled) {
+        statusBadge.textContent = 'Enabled';
+        statusBadge.className = 'status-badge status-enabled';
+        
+        methodsContainer.innerHTML = `
+          <div class="mfa-method active">
+            <div class="method-info">
+              <h3>📱 ${getMFAMethodName(data.type)}</h3>
+              <p>Currently active authentication method</p>
+            </div>
+            <div class="method-actions">
+              <button class="btn btn-danger" onclick="showDisableModal()">Disable MFA</button>
+            </div>
+          </div>
+        `;
+        
+        // Show backup codes if available
+        if (data.backupCodes && data.backupCodes.length > 0) {
+          document.getElementById('backup-codes-section').style.display = 'block';
+          renderBackupCodes(data.backupCodes);
+        }
+      } else {
+        statusBadge.textContent = 'Disabled';
+        statusBadge.className = 'status-badge status-disabled';
+        
+        methodsContainer.innerHTML = `
+          <div class="alert alert-warning">
+            <strong>MFA is not enabled.</strong> Your account security can be improved by enabling multi-factor authentication.
+          </div>
+          <div class="mfa-method">
+            <div class="method-info">
+              <h3>📱 Authenticator App (TOTP)</h3>
+              <p>Use Google Authenticator, Authy, or similar apps</p>
+            </div>
+            <div class="method-actions">
+              <button class="btn btn-primary" onclick="window.location.href='/mfa/setup'">Enable MFA</button>
+            </div>
+          </div>
+        `;
+        
+        document.getElementById('backup-codes-section').style.display = 'none';
+      }
+    }
+
+    function getMFAMethodName(type) {
+      const methods = {
+        'totp': 'Authenticator App (TOTP)',
+        'sms': 'SMS Verification',
+        'email': 'Email Verification'
+      };
+      return methods[type] || 'Unknown Method';
+    }
+
+    function renderBackupCodes(codes) {
+      const grid = document.getElementById('backup-codes-grid');
+      grid.innerHTML = codes.map(code => 
+        `<div class="code-item">${code}</div>`
+      ).join('');
+    }
+
+    function showDisableModal() {
+      document.getElementById('disable-modal').classList.add('active');
+      document.getElementById('password-confirm').value = '';
+      document.getElementById('disable-message').innerHTML = '';
+    }
+
+    function closeModal() {
+      document.getElementById('disable-modal').classList.remove('active');
+    }
+
+    async function confirmDisableMFA() {
+      const password = document.getElementById('password-confirm').value;
+      
+      if (!password) {
+        document.getElementById('disable-message').innerHTML = 
+          '<div class="alert alert-error">Please enter your password</div>';
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/auth/mfa/disable', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ password })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          closeModal();
+          showMessage('MFA has been disabled successfully', 'success');
+          loadMFASettings();
+        } else {
+          document.getElementById('disable-message').innerHTML = 
+            `<div class="alert alert-error">${data.message}</div>`;
+        }
+      } catch (error) {
+        console.error('Error disabling MFA:', error);
+        document.getElementById('disable-message').innerHTML = 
+          '<div class="alert alert-error">Failed to disable MFA</div>';
+      }
+    }
+
+    function downloadBackupCodes() {
+      if (!currentMFASettings || !currentMFASettings.backupCodes) {
+        showMessage('No backup codes available', 'error');
+        return;
+      }
+
+      const content = `NexaERP MFA Backup Codes\n\nGenerated: ${new Date().toLocaleString()}\n\n` +
+        currentMFASettings.backupCodes.map((code, i) => `${i + 1}. ${code}`).join('\n') +
+        '\n\nKeep these codes in a secure location. Each code can only be used once.';
+      
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `nexaerp-backup-codes-${Date.now()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showMessage('Backup codes downloaded successfully', 'success');
+    }
+
+    function showMessage(message, type) {
+      const messageDiv = document.getElementById('message');
+      messageDiv.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+      
+      setTimeout(() => {
+        messageDiv.innerHTML = '';
+      }, 5000);
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('disable-modal').addEventListener('click', function(e) {
+      if (e.target === this) {
+        closeModal();
+      }
+    });
+  </script>
+</body>
+</html>

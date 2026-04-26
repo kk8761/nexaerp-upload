@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Execution History - NexaERP</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f7fa;
+      color: #2c3e50;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .filters {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .filter-group {
+      flex: 1;
+    }
+
+    .filter-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .executions-list {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .execution-item {
+      padding: 20px;
+      border-bottom: 1px solid #ecf0f1;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .execution-item:hover {
+      background: #f8f9fa;
+    }
+
+    .execution-item:last-child {
+      border-bottom: none;
+    }
+
+    .execution-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .execution-id {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+
+    .execution-status {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-completed {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .status-running {
+      background: #cce5ff;
+      color: #004085;
+    }
+
+    .status-failed {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .execution-meta {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      color: #7f8c8d;
+    }
+
+    .execution-meta span {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .execution-details {
+      display: none;
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #ecf0f1;
+    }
+
+    .execution-details.active {
+      display: block;
+    }
+
+    .step-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+    }
+
+    .step-number {
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #3498db;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .step-info {
+      flex: 1;
+    }
+
+    .step-type {
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    .step-status {
+      font-size: 12px;
+      color: #7f8c8d;
+    }
+
+    .step-icon {
+      font-size: 20px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #95a5a6;
+    }
+
+    .empty-state-icon {
+      font-size: 64px;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #3498db;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2980b9;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📊 Workflow Execution History</h1>
+      <p>View and monitor workflow execution logs</p>
+    </div>
+
+    <div class="filters">
+      <div class="filter-group">
+        <label>Workflow</label>
+        <select id="workflowFilter" onchange="loadExecutions()">
+          <option value="">All Workflows</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Status</label>
+        <select id="statusFilter" onchange="loadExecutions()">
+          <option value="">All Statuses</option>
+          <option value="completed">Completed</option>
+          <option value="running">Running</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Date Range</label>
+        <input type="date" id="dateFilter" onchange="loadExecutions()">
+      </div>
+    </div>
+
+    <div class="executions-list" id="executionsList">
+      <div class="empty-state">
+        <div class="empty-state-icon">⏳</div>
+        <p>Loading execution history...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let workflows = [];
+    let executions = [];
+
+    async function init() {
+      await loadWorkflows();
+      await loadExecutions();
+    }
+
+    async function loadWorkflows() {
+      try {
+        const response = await fetch('/api/workflows');
+        workflows = await response.json();
+
+        const select = document.getElementById('workflowFilter');
+        select.innerHTML = '<option value="">All Workflows</option>' +
+          workflows.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
+      } catch (error) {
+        console.error('Error loading workflows:', error);
+      }
+    }
+
+    async function loadExecutions() {
+      const workflowId = document.getElementById('workflowFilter').value;
+      const status = document.getElementById('statusFilter').value;
+
+      try {
+        let url = '/api/workflows/executions';
+        const params = new URLSearchParams();
+        if (workflowId) params.append('workflowId', workflowId);
+        if (status) params.append('status', status);
+        if (params.toString()) url += '?' + params.toString();
+
+        const response = await fetch(url);
+        executions = await response.json();
+
+        renderExecutions();
+      } catch (error) {
+        console.error('Error loading executions:', error);
+        document.getElementById('executionsList').innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">❌</div>
+            <p>Error loading execution history</p>
+          </div>
+        `;
+      }
+    }
+
+    function renderExecutions() {
+      const list = document.getElementById('executionsList');
+
+      if (executions.length === 0) {
+        list.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <p>No executions found</p>
+          </div>
+        `;
+        return;
+      }
+
+      list.innerHTML = executions.map(execution => `
+        <div class="execution-item" onclick="toggleDetails('${execution.id}')">
+          <div class="execution-header">
+            <div class="execution-id">Execution #${execution.id.substring(0, 8)}</div>
+            <div class="execution-status status-${execution.status}">
+              ${execution.status}
+            </div>
+          </div>
+          <div class="execution-meta">
+            <span>🔄 ${execution.workflow?.name || 'Unknown Workflow'}</span>
+            <span>🕐 ${new Date(execution.startedAt).toLocaleString()}</span>
+            <span>⏱️ ${getDuration(execution)}</span>
+          </div>
+          <div class="execution-details" id="details-${execution.id}">
+            <h4 style="margin-bottom: 10px;">Execution Steps</h4>
+            <div class="step-list">
+              ${renderSteps(execution.steps || [])}
+            </div>
+            ${execution.errorMessage ? `
+              <div style="margin-top: 15px; padding: 12px; background: #f8d7da; border-radius: 6px; color: #721c24;">
+                <strong>Error:</strong> ${execution.errorMessage}
+              </div>
+            ` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderSteps(steps) {
+      if (steps.length === 0) {
+        return '<p style="color: #95a5a6;">No step details available</p>';
+      }
+
+      return steps.map(step => `
+        <div class="step-item">
+          <div class="step-number">${step.stepOrder}</div>
+          <div class="step-info">
+            <div class="step-type">${step.stepType}</div>
+            <div class="step-status">${step.status}</div>
+          </div>
+          <div class="step-icon">
+            ${getStepIcon(step.status)}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function getStepIcon(status) {
+      const icons = {
+        'completed': '✅',
+        'running': '⏳',
+        'failed': '❌',
+        'skipped': '⏭️',
+        'pending': '⏸️'
+      };
+      return icons[status] || '❓';
+    }
+
+    function getDuration(execution) {
+      if (!execution.completedAt) {
+        return 'In progress';
+      }
+
+      const start = new Date(execution.startedAt);
+      const end = new Date(execution.completedAt);
+      const duration = Math.round((end - start) / 1000);
+
+      if (duration < 60) {
+        return `${duration}s`;
+      } else if (duration < 3600) {
+        return `${Math.floor(duration / 60)}m ${duration % 60}s`;
+      } else {
+        return `${Math.floor(duration / 3600)}h ${Math.floor((duration % 3600) / 60)}m`;
+      }
+    }
+
+    function toggleDetails(executionId) {
+      const details = document.getElementById(`details-${executionId}`);
+      details.classList.toggle('active');
+    }
+
+    // Initialize on page load
+    init();
+  </script>
+</body>
+</html>

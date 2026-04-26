@@ -1,0 +1,296 @@
+<div class="page-container">
+  <div class="page-header">
+    <div>
+      <a href="/crm/opportunities" class="back-link">← Back to Opportunities</a>
+      <h1><%= isEdit ? 'Edit Opportunity' : 'New Opportunity' %></h1>
+    </div>
+  </div>
+
+  <div class="form-container">
+    <form id="opportunityForm" onsubmit="handleSubmit(event)">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="name">Opportunity Name *</label>
+          <input 
+            type="text" 
+            id="name" 
+            name="name" 
+            required 
+            value="<%= opportunity ? opportunity.name : '' %>"
+            placeholder="e.g., Q1 2024 Enterprise Deal"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="leadId">Lead *</label>
+          <select id="leadId" name="leadId" required>
+            <option value="">Select a lead</option>
+            <% if (leads && leads.length > 0) { %>
+              <% leads.forEach(lead => { %>
+                <option 
+                  value="<%= lead.id %>" 
+                  <%= (opportunity && opportunity.leadId === lead.id) ? 'selected' : '' %>
+                >
+                  <%= lead.firstName %> <%= lead.lastName %> 
+                  <%= lead.company ? `(${lead.company})` : '' %>
+                </option>
+              <% }); %>
+            <% } %>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="value">Value (₹) *</label>
+          <input 
+            type="number" 
+            id="value" 
+            name="value" 
+            required 
+            min="0" 
+            step="0.01"
+            value="<%= opportunity ? opportunity.value : '' %>"
+            placeholder="0.00"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="probability">Probability (%) *</label>
+          <input 
+            type="number" 
+            id="probability" 
+            name="probability" 
+            required 
+            min="0" 
+            max="100"
+            value="<%= opportunity ? opportunity.probability : 10 %>"
+          />
+          <small>Enter a value between 0 and 100</small>
+        </div>
+
+        <div class="form-group">
+          <label for="stage">Stage *</label>
+          <select id="stage" name="stage" required>
+            <option value="prospecting" <%= (opportunity && opportunity.stage === 'prospecting') ? 'selected' : '' %>>Prospecting</option>
+            <option value="qualification" <%= (opportunity && opportunity.stage === 'qualification') ? 'selected' : '' %>>Qualification</option>
+            <option value="proposal" <%= (opportunity && opportunity.stage === 'proposal') ? 'selected' : '' %>>Proposal</option>
+            <option value="negotiation" <%= (opportunity && opportunity.stage === 'negotiation') ? 'selected' : '' %>>Negotiation</option>
+            <option value="closed_won" <%= (opportunity && opportunity.stage === 'closed_won') ? 'selected' : '' %>>Closed Won</option>
+            <option value="closed_lost" <%= (opportunity && opportunity.stage === 'closed_lost') ? 'selected' : '' %>>Closed Lost</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="expectedClose">Expected Close Date</label>
+          <input 
+            type="date" 
+            id="expectedClose" 
+            name="expectedClose"
+            value="<%= opportunity && opportunity.expectedClose ? new Date(opportunity.expectedClose).toISOString().split('T')[0] : '' %>"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="assignedToId">Assigned To</label>
+          <select id="assignedToId" name="assignedToId">
+            <option value="">Unassigned</option>
+            <% if (users && users.length > 0) { %>
+              <% users.forEach(user => { %>
+                <option 
+                  value="<%= user.id %>" 
+                  <%= (opportunity && opportunity.assignedToId === user.id) ? 'selected' : '' %>
+                >
+                  <%= user.name %>
+                </option>
+              <% }); %>
+            <% } %>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" onclick="goBack()">Cancel</button>
+        <button type="submit" class="btn btn-primary">
+          <%= isEdit ? 'Update Opportunity' : 'Create Opportunity' %>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  async function handleSubmit(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const data = {
+      name: formData.get('name'),
+      leadId: formData.get('leadId'),
+      value: parseFloat(formData.get('value')),
+      probability: parseInt(formData.get('probability')),
+      stage: formData.get('stage'),
+      expectedClose: formData.get('expectedClose') || null,
+      assignedToId: formData.get('assignedToId') || null
+    };
+
+    const isEdit = <%= isEdit ? 'true' : 'false' %>;
+    const opportunityId = '<%= opportunity ? opportunity.id : '' %>';
+    
+    try {
+      const url = isEdit 
+        ? `/api/crm/opportunities/${opportunityId}`
+        : '/api/crm/opportunities';
+      
+      const method = isEdit ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        showToast(isEdit ? 'Opportunity updated successfully' : 'Opportunity created successfully', 'success');
+        setTimeout(() => {
+          window.location.href = `/crm/opportunities/${result.opportunity.id}`;
+        }, 1000);
+      } else {
+        showToast(result.message || 'Failed to save opportunity', 'error');
+      }
+    } catch (error) {
+      console.error(error);
+      showToast('Error saving opportunity', 'error');
+    }
+  }
+
+  function goBack() {
+    window.history.back();
+  }
+
+  function showToast(message, type) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.getElementById('toast-container').appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+  }
+</script>
+
+<style>
+  .form-container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 8px;
+    padding: 2rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .form-group label {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #333;
+  }
+
+  .form-group input,
+  .form-group select {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+
+  .form-group input:focus,
+  .form-group select:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+
+  .form-group small {
+    margin-top: 0.25rem;
+    color: #666;
+    font-size: 0.875rem;
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+  }
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: #007bff;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #0056b3;
+  }
+
+  .btn-secondary {
+    background: #6c757d;
+    color: white;
+  }
+
+  .btn-secondary:hover {
+    background: #545b62;
+  }
+
+  .back-link {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 0.875rem;
+  }
+
+  .back-link:hover {
+    text-decoration: underline;
+  }
+
+  .toast-container {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 9999;
+  }
+
+  .toast {
+    padding: 1rem 1.5rem;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .toast-success {
+    background: #28a745;
+    color: white;
+  }
+
+  .toast-error {
+    background: #dc3545;
+    color: white;
+  }
+</style>

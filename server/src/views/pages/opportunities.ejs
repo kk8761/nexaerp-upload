@@ -1,0 +1,110 @@
+<div class="page-container">
+  <div class="page-header">
+    <h1>Opportunities</h1>
+    <button class="btn btn-primary" onclick="showCreateOpportunityModal()">
+      <span>+</span> New Opportunity
+    </button>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters-bar">
+    <select id="stageFilter" onchange="filterOpportunities()">
+      <option value="">All Stages</option>
+      <option value="prospecting">Prospecting</option>
+      <option value="qualification">Qualification</option>
+      <option value="proposal">Proposal</option>
+      <option value="negotiation">Negotiation</option>
+      <option value="closed_won">Closed Won</option>
+      <option value="closed_lost">Closed Lost</option>
+    </select>
+  </div>
+
+  <!-- Opportunities Table -->
+  <div class="table-container">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Lead/Company</th>
+          <th>Value</th>
+          <th>Probability</th>
+          <th>Stage</th>
+          <th>Expected Close</th>
+          <th>Assigned To</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="opportunitiesTableBody">
+        <% if (opportunities && opportunities.length > 0) { %>
+          <% opportunities.forEach(opp => { %>
+            <tr>
+              <td><a href="/crm/opportunities/<%= opp.id %>"><%= opp.name %></a></td>
+              <td>
+                <% if (opp.lead) { %>
+                  <%= opp.lead.firstName %> <%= opp.lead.lastName %>
+                  <% if (opp.lead.company) { %>
+                    <br><small><%= opp.lead.company %></small>
+                  <% } %>
+                <% } %>
+              </td>
+              <td>₹<%= opp.value.toLocaleString() %></td>
+              <td><%= opp.probability %>%</td>
+              <td>
+                <span class="badge badge-<%= opp.stage %>">
+                  <%= opp.stage.replace('_', ' ').toUpperCase() %>
+                </span>
+              </td>
+              <td>
+                <% if (opp.expectedClose) { %>
+                  <%= new Date(opp.expectedClose).toLocaleDateString() %>
+                <% } else { %>
+                  -
+                <% } %>
+              </td>
+              <td>
+                <% if (opp.assignedTo) { %>
+                  <%= opp.assignedTo.name %>
+                <% } else { %>
+                  Unassigned
+                <% } %>
+              </td>
+              <td>
+                <button class="btn btn-sm" onclick="viewOpportunity('<%= opp.id %>')">View</button>
+                <button class="btn btn-sm" onclick="editOpportunity('<%= opp.id %>')">Edit</button>
+              </td>
+            </tr>
+          <% }); %>
+        <% } else { %>
+          <tr>
+            <td colspan="8" class="text-center">No opportunities found</td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  function filterOpportunities() {
+    const stage = document.getElementById('stageFilter').value;
+    const url = new URL(window.location.href);
+    if (stage) {
+      url.searchParams.set('stage', stage);
+    } else {
+      url.searchParams.delete('stage');
+    }
+    window.location.href = url.toString();
+  }
+
+  function viewOpportunity(id) {
+    window.location.href = `/crm/opportunities/${id}`;
+  }
+
+  function editOpportunity(id) {
+    window.location.href = `/crm/opportunities/${id}/edit`;
+  }
+
+  function showCreateOpportunityModal() {
+    window.location.href = '/crm/opportunities/new';
+  }
+</script>

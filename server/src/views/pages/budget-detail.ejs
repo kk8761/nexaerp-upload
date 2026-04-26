@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Budget Detail - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+  <style>
+    .detail-header {
+      background: white;
+      border-radius: 8px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+    .detail-item label {
+      display: block;
+      font-size: 0.875rem;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
+    .detail-item value {
+      display: block;
+      font-size: 1.125rem;
+      font-weight: 500;
+      color: #333;
+    }
+    .status-badge {
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-weight: 500;
+      display: inline-block;
+    }
+    .status-draft { background: #e3f2fd; color: #1976d2; }
+    .status-approved { background: #e8f5e9; color: #388e3c; }
+    .status-active { background: #fff3e0; color: #f57c00; }
+    .status-closed { background: #f5f5f5; color: #616161; }
+    .line-items-table {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th {
+      text-align: left;
+      padding: 0.75rem;
+      border-bottom: 2px solid #e0e0e0;
+      font-weight: 600;
+      color: #333;
+    }
+    td {
+      padding: 0.75rem;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    tr:hover {
+      background: #f9f9f9;
+    }
+    .variance-positive {
+      color: #388e3c;
+      font-weight: 500;
+    }
+    .variance-negative {
+      color: #d32f2f;
+      font-weight: 500;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .summary-card {
+      background: white;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .summary-card h4 {
+      margin: 0 0 0.5rem 0;
+      font-size: 0.875rem;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .summary-card .value {
+      font-size: 1.75rem;
+      font-weight: 600;
+      color: #333;
+    }
+    .period-filter {
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <button class="btn btn-secondary" onclick="window.location.href='/finance/budgets'">
+          ← Back to Budgets
+        </button>
+        <h1 id="budgetName" style="margin-top: 1rem;">Loading...</h1>
+      </div>
+      <div class="action-buttons">
+        <button id="approveBtn" class="btn btn-success" onclick="approveBudget()" style="display: none;">
+          ✓ Approve Budget
+        </button>
+        <button class="btn btn-primary" onclick="updateActuals()">
+          🔄 Update Actuals
+        </button>
+        <button class="btn btn-secondary" onclick="exportReport()">
+          📊 Export Report
+        </button>
+      </div>
+    </div>
+
+    <!-- Budget Header -->
+    <div class="detail-header">
+      <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div>
+          <h2 id="budgetTitle" style="margin: 0 0 0.5rem 0;">Budget Details</h2>
+          <p id="budgetDescription" style="color: #666; margin: 0;"></p>
+        </div>
+        <span id="budgetStatus" class="status-badge"></span>
+      </div>
+      
+      <div class="detail-grid">
+        <div class="detail-item">
+          <label>Fiscal Year</label>
+          <value id="fiscalYear">-</value>
+        </div>
+        <div class="detail-item">
+          <label>Start Date</label>
+          <value id="startDate">-</value>
+        </div>
+        <div class="detail-item">
+          <label>End Date</label>
+          <value id="endDate">-</value>
+        </div>
+        <div class="detail-item">
+          <label>Created</label>
+          <value id="createdAt">-</value>
+        </div>
+        <div class="detail-item" id="approvedSection" style="display: none;">
+          <label>Approved</label>
+          <value id="approvedAt">-</value>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="summary-cards">
+      <div class="summary-card">
+        <h4>Total Budgeted</h4>
+        <div class="value" id="totalBudgeted">$0.00</div>
+      </div>
+      <div class="summary-card">
+        <h4>Total Actual</h4>
+        <div class="value" id="totalActual">$0.00</div>
+      </div>
+      <div class="summary-card">
+        <h4>Total Variance</h4>
+        <div class="value" id="totalVariance">$0.00</div>
+      </div>
+      <div class="summary-card">
+        <h4>Variance %</h4>
+        <div class="value" id="variancePercent">0%</div>
+      </div>
+    </div>
+
+    <!-- Line Items -->
+    <div class="line-items-table">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h3 style="margin: 0;">Budget Line Items</h3>
+        <div class="period-filter">
+          <label for="periodFilter">Filter by Period:</label>
+          <select id="periodFilter" class="form-control" onchange="filterLineItems()">
+            <option value="">All Periods</option>
+          </select>
+        </div>
+      </div>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Period</th>
+            <th>Account Code</th>
+            <th>Account Name</th>
+            <th style="text-align: right;">Budgeted Amount</th>
+            <th style="text-align: right;">Actual Amount</th>
+            <th style="text-align: right;">Variance</th>
+            <th style="text-align: right;">Variance %</th>
+          </tr>
+        </thead>
+        <tbody id="lineItemsBody">
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 2rem;">Loading...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script>
+    const budgetId = '<%= budgetId %>';
+    let budget = null;
+    let allLineItems = [];
+
+    async function loadBudget() {
+      try {
+        const response = await fetch(`/api/accounting/budgets/${budgetId}/variance-report`);
+        const data = await response.json();
+        
+        if (data.success) {
+          budget = data.budget || data;
+          renderBudgetDetails();
+          renderLineItems();
+          populatePeriodFilter();
+          calculateSummary();
+        } else {
+          showNotification('Failed to load budget', 'error');
+        }
+      } catch (error) {
+        console.error('Error loading budget:', error);
+        showNotification('Failed to load budget', 'error');
+      }
+    }
+
+    function renderBudgetDetails() {
+      document.getElementById('budgetName').textContent = budget.name;
+      document.getElementById('budgetTitle').textContent = budget.name;
+      document.getElementById('budgetDescription').textContent = 
+        `Budget for fiscal year ${budget.fiscalYear}`;
+      
+      const statusBadge = document.getElementById('budgetStatus');
+      statusBadge.textContent = budget.status.toUpperCase();
+      statusBadge.className = `status-badge status-${budget.status}`;
+      
+      document.getElementById('fiscalYear').textContent = budget.fiscalYear;
+      document.getElementById('startDate').textContent = formatDate(budget.startDate);
+      document.getElementById('endDate').textContent = formatDate(budget.endDate);
+      document.getElementById('createdAt').textContent = formatDate(budget.createdAt);
+      
+      if (budget.approvedAt) {
+        document.getElementById('approvedSection').style.display = 'block';
+        document.getElementById('approvedAt').textContent = formatDate(budget.approvedAt);
+      }
+      
+      // Show approve button if budget is in draft status
+      if (budget.status === 'draft') {
+        document.getElementById('approveBtn').style.display = 'block';
+      }
+      
+      allLineItems = budget.lineItems || [];
+    }
+
+    function renderLineItems(items = null) {
+      const lineItems = items || allLineItems;
+      const tbody = document.getElementById('lineItemsBody');
+      
+      if (lineItems.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 2rem;">No line items found</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = lineItems.map(item => {
+        const varianceClass = item.variance >= 0 ? 'variance-positive' : 'variance-negative';
+        return `
+          <tr>
+            <td>${item.period}</td>
+            <td>${item.account?.accountCode || 'N/A'}</td>
+            <td>${item.account?.name || 'N/A'}</td>
+            <td style="text-align: right;">${formatCurrency(item.budgetedAmount)}</td>
+            <td style="text-align: right;">${formatCurrency(item.actualAmount)}</td>
+            <td style="text-align: right;" class="${varianceClass}">
+              ${formatCurrency(item.variance)}
+            </td>
+            <td style="text-align: right;" class="${varianceClass}">
+              ${item.variancePercent.toFixed(2)}%
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function populatePeriodFilter() {
+      const periods = [...new Set(allLineItems.map(item => item.period))].sort();
+      const select = document.getElementById('periodFilter');
+      
+      select.innerHTML = '<option value="">All Periods</option>' + 
+        periods.map(period => `<option value="${period}">${period}</option>`).join('');
+    }
+
+    function filterLineItems() {
+      const period = document.getElementById('periodFilter').value;
+      
+      if (!period) {
+        renderLineItems();
+        return;
+      }
+      
+      const filtered = allLineItems.filter(item => item.period === period);
+      renderLineItems(filtered);
+    }
+
+    function calculateSummary() {
+      const totalBudgeted = allLineItems.reduce((sum, item) => sum + item.budgetedAmount, 0);
+      const totalActual = allLineItems.reduce((sum, item) => sum + item.actualAmount, 0);
+      const totalVariance = totalActual - totalBudgeted;
+      const variancePercent = totalBudgeted !== 0 ? (totalVariance / totalBudgeted) * 100 : 0;
+      
+      document.getElementById('totalBudgeted').textContent = formatCurrency(totalBudgeted);
+      document.getElementById('totalActual').textContent = formatCurrency(totalActual);
+      
+      const varianceElement = document.getElementById('totalVariance');
+      varianceElement.textContent = formatCurrency(totalVariance);
+      varianceElement.className = `value ${totalVariance >= 0 ? 'variance-positive' : 'variance-negative'}`;
+      
+      const percentElement = document.getElementById('variancePercent');
+      percentElement.textContent = `${variancePercent.toFixed(2)}%`;
+      percentElement.className = `value ${totalVariance >= 0 ? 'variance-positive' : 'variance-negative'}`;
+    }
+
+    async function approveBudget() {
+      if (!confirm('Are you sure you want to approve this budget?')) {
+        return;
+      }
+      
+      try {
+        const response = await fetch(`/api/accounting/budgets/${budgetId}/approve`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showNotification('Budget approved successfully', 'success');
+          loadBudget(); // Reload to update status
+        } else {
+          showNotification(data.message || 'Failed to approve budget', 'error');
+        }
+      } catch (error) {
+        console.error('Error approving budget:', error);
+        showNotification('Failed to approve budget', 'error');
+      }
+    }
+
+    async function updateActuals() {
+      const period = document.getElementById('periodFilter').value;
+      
+      if (!period) {
+        showNotification('Please select a period to update actuals', 'warning');
+        return;
+      }
+      
+      try {
+        const response = await fetch('/api/accounting/budgets/update-actuals', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ period })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          showNotification(`Actuals updated for period ${period}`, 'success');
+          loadBudget(); // Reload to show updated actuals
+        } else {
+          showNotification(data.message || 'Failed to update actuals', 'error');
+        }
+      } catch (error) {
+        console.error('Error updating actuals:', error);
+        showNotification('Failed to update actuals', 'error');
+      }
+    }
+
+    function exportReport() {
+      // Generate CSV export
+      const csv = generateCSV();
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `budget-variance-${budget.name}-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    }
+
+    function generateCSV() {
+      const headers = ['Period', 'Account Code', 'Account Name', 'Budgeted Amount', 'Actual Amount', 'Variance', 'Variance %'];
+      const rows = allLineItems.map(item => [
+        item.period,
+        item.account?.accountCode || 'N/A',
+        item.account?.name || 'N/A',
+        item.budgetedAmount,
+        item.actualAmount,
+        item.variance,
+        item.variancePercent
+      ]);
+      
+      return [headers, ...rows].map(row => row.join(',')).join('\n');
+    }
+
+    function formatDate(dateString) {
+      if (!dateString) return 'N/A';
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(amount);
+    }
+
+    function showNotification(message, type = 'info') {
+      alert(message);
+    }
+
+    // Load budget on page load
+    document.addEventListener('DOMContentLoaded', loadBudget);
+  </script>
+</body>
+</html>

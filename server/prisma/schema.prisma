@@ -1,0 +1,3412 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String    @id @default(uuid())
+  name         String    @db.VarChar(100)
+  email        String    @unique @db.VarChar(255)
+  password     String
+  role         String    @default("cashier") // Legacy field for backwards compatibility
+  
+  // RBAC Relations
+  userRoles    UserRole[]
+
+  // CRM Relations
+  assignedLeads         Lead[]
+  assignedOpportunities Opportunity[]
+  createdActivities     Activity[]
+  
+  // Inventory & Accounting Relations
+  stockMovements        StockMovement[]
+  journalEntries        JournalEntry[]
+
+  // DMS & Workflow Relations
+  uploadedDocuments     Document[]        @relation("DocumentUploadedBy")
+  documentVersions      DocumentVersion[] @relation("DocumentVersionUploadedBy")
+  eSignatureRequests    ESignatureRequest[] @relation("ESignatureRequestCreatedBy")
+  approvalRequests      ApprovalRequest[] @relation("ApprovalRequester")
+  approvalHistories     ApprovalHistory[] @relation("ApprovalHistoryApprover")
+
+  // HRMS, BI & Integrations
+  employeeRecord        Employee?
+  reportTemplates       ReportTemplate[]  @relation("ReportCreator")
+  dashboardWidgets      DashboardWidget[]
+  apiKeys               ApiKey[]
+
+  // Authentication & Security
+  mfaSettings           MFA?
+  sessions              Session[]
+
+  businessName String?   @db.VarChar(255)
+  businessType String?   @default("grocery")
+  phone        String?   @db.VarChar(50)
+  avatar       String?   @db.VarChar(10)
+  storeId      String    @default("store-001")
+  plan         String    @default("free")
+  isActive     Boolean   @default(true)
+  lastLogin    DateTime?
+  preferences  Json?     // Stores theme, language, currency, timezone, notifications
+  
+  // Audit fields
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// ─── Authentication & Security Models ──────────────────────
+
+model MFA {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type            String   @db.VarChar(20) // totp, sms, email
+  secret          String?  @db.VarChar(255) // For TOTP
+  phoneNumber     String?  @db.VarChar(50)  // For SMS
+  emailAddress    String?  @db.VarChar(255) // For Email
+  
+  enabled         Boolean  @default(false)
+  backupCodes     String[] // Array of backup codes
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Session {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  sessionToken    String   @unique @db.VarChar(255)
+  ipAddress       String?  @db.VarChar(45)
+  userAgent       String?  @db.Text
+  
+  expiresAt       DateTime
+  lastActivity    DateTime @default(now())
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([userId])
+  @@index([sessionToken])
+  @@index([expiresAt])
+}
+
+// ─── RBAC Models ───────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique @db.VarChar(100)
+  description String?
+  isSystem    Boolean  @default(false) // System roles cannot be deleted
+  parentId    String?  // Hierarchical role structure
+  parent      Role?    @relation("RoleHierarchy", fields: [parentId], references: [id])
+  children    Role[]   @relation("RoleHierarchy")
+  
+  userRoles   UserRole[]
+  permissions RolePermission[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  action      String   @db.VarChar(50) // e.g., 'create', 'read', 'update', 'delete', 'approve'
+  resource    String   @db.VarChar(100) // e.g., 'invoice', 'product', 'user'
+  description String?
+  
+  roles       RolePermission[]
+
+  @@unique([action, resource])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model UserRole {
+  userId String
+  roleId String
+
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+}
+
+// ─── Audit Log Models ────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?  // Nullable for system actions or unauthenticated actions
+  action    String   @db.VarChar(100) // e.g. 'CREATE_USER', 'UPDATE_INVOICE'
+  entity    String   @db.VarChar(100) // The resource type
+  entityId  String?  @db.VarChar(100) // The ID of the resource
+  details   Json?    // Stores what changed (before/after state)
+  ipAddress String?  @db.VarChar(45)
+  userAgent String?  @db.Text
+  timestamp DateTime @default(now())
+
+  // Note: No update mapping because Audit Logs are immutable append-only
+}
+
+// ─── Product Module ────────────────────────────────────────
+
+model ProductCategory {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(100)
+  description String?  @db.Text
+  parentId    String?
+  parent      ProductCategory? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    ProductCategory[] @relation("CategoryHierarchy")
+  isActive    Boolean  @default(true)
+  
+  products    Product[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([name, parentId])
+  @@index([parentId])
+}
+
+model ProductAttribute {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(100)
+  dataType    String   @db.VarChar(50) // text, number, boolean, date, select
+  options     String[] // For select type
+  isRequired  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  
+  productValues ProductAttributeValue[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([name])
+}
+
+model ProductAttributeValue {
+  id          String   @id @default(uuid())
+  productId   String
+  attributeId String
+  value       String   @db.Text
+  
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute   ProductAttribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  
+  @@unique([productId, attributeId])
+  @@index([productId])
+  @@index([attributeId])
+}
+
+model Product {
+  id           String   @id @default(uuid())
+  name         String   @db.VarChar(255)
+  sku          String?  @unique @db.VarChar(100)
+  barcode      String?  @unique @db.VarChar(100)
+  categoryId   String?
+  category     ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  unit         String   @default("pcs") @db.VarChar(20)
+  price        Float
+  cost         Float
+  stock        Int      @default(0)
+  minStock     Int      @default(10)
+  maxStock     Int      @default(500)
+  gst          Float    @default(12)
+  supplierId   String?
+  supplierName String?  @db.VarChar(255)
+  expiry       DateTime?
+  image        String   @default("📦") @db.VarChar(255)
+  isActive     Boolean  @default(true)
+  storeId      String   @default("store-001")
+  
+  hsn          String?  @db.VarChar(50)
+  brand        String?  @db.VarChar(100)
+  location     String?  @db.VarChar(100)
+  tags         String[] // PostgreSQL string array
+  description  String?  @db.Text
+  
+  // Advanced Inventory Management
+  trackingType String   @default("none") @db.VarChar(20) // none, batch, serial
+  reorderPoint Int?     // Reorder point for auto-requisition
+  reorderQty   Int?     // Reorder quantity
+  
+  // Relations
+  orderItems   OrderItem[]
+  batches      InventoryBatch[]
+  movements    StockMovement[]
+  attributes   ProductAttributeValue[]
+  serialNumbers SerialNumber[]
+  demandForecasts DemandForecast[]
+  
+  bom          BillOfMaterial?
+  usedInBoms   BOMComponent[]       @relation("BOMRawMaterial")
+  
+  // Quality Management Relations
+  inspectionPlans InspectionPlan[]  @relation("InspectionPlanProduct")
+  inspectionResults InspectionResult[] @relation("InspectionResultProduct")
+  nonConformances NonConformance[]  @relation("NonConformanceProduct")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([storeId, isActive])
+  @@index([storeId, stock, minStock])
+  @@index([categoryId])
+  @@index([sku])
+  @@index([barcode])
+  @@index([trackingType])
+}
+
+// ─── Order Module ──────────────────────────────────────────
+
+model Order {
+  id             String        @id @default(uuid())
+  orderNo        String        @unique @db.VarChar(100)
+  type           String        @default("sale") // sale, purchase, return, transfer
+  
+  customerId     String?
+  customerName   String        @default("Walk-in Customer") @db.VarChar(255)
+  customerPhone  String?       @db.VarChar(50)
+
+  subtotal       Float
+  discount       Float         @default(0)
+  discountType   String        @default("flat") // percent, flat
+  taxAmount      Float         @default(0)
+  total          Float
+
+  paymentMode    String        @default("cash")
+  paymentStatus  String        @default("paid")
+  amountPaid     Float         @default(0)
+  changeDue      Float         @default(0)
+
+  status         String        @default("completed")
+  
+  invoiceNo      String?       @unique @db.VarChar(100)
+  gstDetails     Json?         // Stores sgst, cgst, igst, totalGst
+
+  storeId        String        @default("store-001")
+  cashierId      String?
+  cashierName    String?       @db.VarChar(255)
+  notes          String?       @db.Text
+  tags           String[]
+
+  items          OrderItem[]
+  trackingStages OrderStage[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([storeId, createdAt(sort: Desc)])
+  @@index([customerId])
+  @@index([status, storeId])
+}
+
+model OrderItem {
+  id           String  @id @default(uuid())
+  orderId      String
+  productId    String?
+  productName  String  @db.VarChar(255)
+  sku          String? @db.VarChar(100)
+  unit         String? @db.VarChar(20)
+  image        String? @db.VarChar(255)
+  qty          Float
+  price        Float
+  cost         Float?
+  gst          Float   @default(0)
+  discount     Float   @default(0)
+  subtotal     Float
+  gstAmount    Float   @default(0)
+
+  order        Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+}
+
+model OrderStage {
+  id           String    @id @default(uuid())
+  orderId      String
+  stage        String    @db.VarChar(100)
+  status       String    @default("pending")
+  timestamp    DateTime?
+  updatedBy    String?   @db.VarChar(100)
+
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// ─── CRM Module ────────────────────────────────────────────
+
+model Lead {
+  id             String        @id @default(uuid())
+  firstName      String        @db.VarChar(100)
+  lastName       String        @db.VarChar(100)
+  email          String?       @db.VarChar(255)
+  phone          String?       @db.VarChar(50)
+  company        String?       @db.VarChar(255)
+  source         String        @default("organic") // organic, referral, cold_call, website
+  status         String        @default("new") // new, contacted, qualified, lost
+  score          Int           @default(0) // 0-100 Lead scoring
+
+  assignedToId   String?
+  assignedTo     User?         @relation(fields: [assignedToId], references: [id])
+
+  opportunities  Opportunity[]
+  activities     Activity[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status, score])
+  @@index([assignedToId])
+}
+
+model Opportunity {
+  id             String        @id @default(uuid())
+  name           String        @db.VarChar(255)
+  leadId         String
+  value          Float         @default(0)
+  probability    Int           @default(10) // 0-100 percentage
+  stage          String        @default("prospecting") // prospecting, qualification, proposal, negotiation, closed_won, closed_lost
+  expectedClose  DateTime?
+  
+  lead           Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  
+  assignedToId   String?
+  assignedTo     User?         @relation(fields: [assignedToId], references: [id])
+  
+  quotations     Quotation[]
+  activities     Activity[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([stage, probability])
+  @@index([leadId])
+}
+
+model Quotation {
+  id             String        @id @default(uuid())
+  quoteNo        String        @unique @db.VarChar(100)
+  opportunityId  String
+  
+  subtotal       Float
+  taxAmount      Float         @default(0)
+  total          Float
+  
+  validUntil     DateTime
+  status         String        @default("draft") // draft, sent, approved, rejected, expired
+  
+  opportunity    Opportunity   @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  items          QuotationItem[]
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([status])
+  @@index([opportunityId])
+}
+
+model QuotationItem {
+  id             String        @id @default(uuid())
+  quotationId    String
+  productId      String?
+  productName    String        @db.VarChar(255)
+  qty            Float
+  price          Float
+  discount       Float         @default(0)
+  subtotal       Float
+
+  quotation      Quotation     @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+}
+
+model Activity {
+  id             String        @id @default(uuid())
+  type           String        @db.VarChar(50) // call, email, meeting
+  subject        String        @db.VarChar(255)
+  description    String?       @db.Text
+  scheduledDate  DateTime?
+  completedDate  DateTime?
+  status         String        @default("planned") // planned, completed, cancelled
+  
+  leadId         String?
+  opportunityId  String?
+  createdById    String
+
+  lead           Lead?         @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  opportunity    Opportunity?  @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  createdBy      User          @relation(fields: [createdById], references: [id])
+
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([leadId])
+  @@index([opportunityId])
+  @@index([createdById])
+}
+
+// ─── Inventory Management Module ───────────────────────────
+
+model Warehouse {
+  id          String   @id @default(uuid())
+  name        String   @db.VarChar(255)
+  code        String   @unique @db.VarChar(50)
+  address     String?  @db.Text
+  managerId   String?
+  storeId     String   @default("store-001")
+  
+  batches     InventoryBatch[]
+  movements   StockMovement[]
+  binLocations BinLocation[]
+  cycleCounts CycleCount[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BinLocation {
+  id          String   @id @default(uuid())
+  warehouseId String
+  code        String   @db.VarChar(50) // e.g., "A-01-05" (Aisle-Rack-Shelf)
+  aisle       String?  @db.VarChar(20)
+  rack        String?  @db.VarChar(20)
+  shelf       String?  @db.VarChar(20)
+  capacity    Float?   // Maximum capacity
+  currentLoad Float    @default(0) // Current utilization
+  isActive    Boolean  @default(true)
+  
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  inventory   BinInventory[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([warehouseId, code])
+  @@index([warehouseId, isActive])
+}
+
+model BinInventory {
+  id          String   @id @default(uuid())
+  binLocationId String
+  productId   String
+  quantity    Float    @default(0)
+  batchNumber String?  @db.VarChar(100)
+  
+  binLocation BinLocation @relation(fields: [binLocationId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([binLocationId, productId, batchNumber])
+  @@index([productId])
+}
+
+model CycleCount {
+  id          String   @id @default(uuid())
+  countNumber String   @unique @db.VarChar(100)
+  warehouseId String
+  scheduledDate DateTime
+  completedDate DateTime?
+  status      String   @default("scheduled") // scheduled, in_progress, completed, cancelled
+  countedBy   String?  @db.VarChar(255)
+  notes       String?  @db.Text
+  
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  items       CycleCountItem[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([warehouseId, status])
+  @@index([scheduledDate])
+}
+
+model CycleCountItem {
+  id          String   @id @default(uuid())
+  cycleCountId String
+  productId   String
+  binLocationId String?
+  batchNumber String?  @db.VarChar(100)
+  expectedQty Float
+  countedQty  Float?
+  variance    Float?   // countedQty - expectedQty
+  variancePercent Float? // (variance / expectedQty) * 100
+  reason      String?  @db.Text
+  adjusted    Boolean  @default(false)
+  
+  cycleCount  CycleCount @relation(fields: [cycleCountId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([cycleCountId])
+  @@index([productId])
+}
+
+model InventoryBatch {
+  id              String   @id @default(uuid())
+  batchNumber     String   @db.VarChar(100)
+  productId       String
+  warehouseId     String
+  quantity        Float    @default(0)
+  manufacturingDate DateTime?
+  expiryDate      DateTime?
+  costPerUnit     Float
+  status          String   @default("active") // active, quarantined, expired
+
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([productId, batchNumber, warehouseId])
+  @@index([expiryDate])
+  @@index([status])
+}
+
+model SerialNumber {
+  id              String   @id @default(uuid())
+  serialNumber    String   @unique @db.VarChar(100)
+  productId       String
+  warehouseId     String?
+  status          String   @default("available") // available, sold, reserved, damaged, returned
+  purchaseDate    DateTime?
+  saleDate        DateTime?
+  orderId         String?  @db.VarChar(100)
+  notes           String?  @db.Text
+
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([productId])
+  @@index([status])
+  @@index([warehouseId])
+}
+
+model StockMovement {
+  id              String   @id @default(uuid())
+  type            String   @db.VarChar(50) // purchase, sale, transfer, adjustment, return
+  productId       String
+  warehouseId     String
+  quantity        Float
+  unitCost        Float?
+  referenceId     String?  @db.VarChar(100) // Order ID, Transfer ID, etc.
+  notes           String?  @db.Text
+  userId          String
+  batchNumber     String?  @db.VarChar(100)
+  serialNumber    String?  @db.VarChar(100)
+
+  product         Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse       Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id])
+
+  createdAt       DateTime  @default(now())
+
+  @@index([productId, warehouseId])
+  @@index([type])
+  @@index([referenceId])
+}
+
+model WarehouseTransfer {
+  id              String   @id @default(uuid())
+  transferNumber  String   @unique @db.VarChar(100)
+  fromWarehouseId String
+  toWarehouseId   String
+  status          String   @default("pending") // pending, in_transit, completed, cancelled
+  requestedBy     String
+  approvedBy      String?
+  shippedDate     DateTime?
+  receivedDate    DateTime?
+  notes           String?  @db.Text
+  
+  items           WarehouseTransferItem[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([fromWarehouseId])
+  @@index([toWarehouseId])
+  @@index([status])
+}
+
+model WarehouseTransferItem {
+  id              String   @id @default(uuid())
+  transferId      String
+  productId       String
+  quantity        Float
+  batchNumber     String?  @db.VarChar(100)
+  serialNumbers   String[] // Array of serial numbers for serial-tracked items
+  
+  transfer        WarehouseTransfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+
+  @@index([transferId])
+  @@index([productId])
+}
+
+// ─── Warehouse Management System (WMS) ─────────────────────
+
+model PutawayStrategy {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  strategyType    String   @db.VarChar(50) // fixed, random, directed
+  warehouseId     String?
+  priority        Int      @default(0)
+  isActive        Boolean  @default(true)
+  rules           Json?    // JSON rules for directed putaway
+  description     String?  @db.Text
+  
+  putawayTasks    PutawayTask[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([warehouseId, isActive])
+  @@index([strategyType])
+}
+
+model PutawayTask {
+  id              String   @id @default(uuid())
+  taskNumber      String   @unique @db.VarChar(100)
+  strategyId      String
+  warehouseId     String
+  productId       String
+  quantity        Float
+  fromLocation    String?  @db.VarChar(100) // Receiving dock
+  toBinLocationId String?
+  status          String   @default("pending") // pending, assigned, in_progress, completed, cancelled
+  assignedTo      String?  // Worker ID
+  priority        Int      @default(0)
+  notes           String?  @db.Text
+  
+  strategy        PutawayStrategy @relation(fields: [strategyId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  @@index([warehouseId, status])
+  @@index([assignedTo, status])
+  @@index([priority])
+}
+
+model WavePick {
+  id              String   @id @default(uuid())
+  waveNumber      String   @unique @db.VarChar(100)
+  warehouseId     String
+  status          String   @default("created") // created, released, picking, completed, cancelled
+  pickingMethod   String   @db.VarChar(50) // batch, zone, discrete, cluster
+  priority        Int      @default(0)
+  scheduledDate   DateTime?
+  releasedAt      DateTime?
+  completedAt     DateTime?
+  notes           String?  @db.Text
+  
+  pickLists       PickList[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([warehouseId, status])
+  @@index([scheduledDate])
+}
+
+model PickList {
+  id              String   @id @default(uuid())
+  pickListNumber  String   @unique @db.VarChar(100)
+  wavePickId      String?
+  warehouseId     String
+  orderId         String?  @db.VarChar(100) // Reference to sales order
+  status          String   @default("pending") // pending, assigned, picking, picked, packed, cancelled
+  assignedTo      String?  // Worker ID
+  priority        Int      @default(0)
+  pickingStarted  DateTime?
+  pickingCompleted DateTime?
+  
+  wavePick        WavePick? @relation(fields: [wavePickId], references: [id])
+  items           PickListItem[]
+  packingSlip     PackingSlip?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([warehouseId, status])
+  @@index([assignedTo, status])
+  @@index([wavePickId])
+}
+
+model PickListItem {
+  id              String   @id @default(uuid())
+  pickListId      String
+  productId       String
+  binLocationId   String?
+  quantityOrdered Float
+  quantityPicked  Float    @default(0)
+  batchNumber     String?  @db.VarChar(100)
+  serialNumbers   String[] // Array of serial numbers picked
+  pickSequence    Int      // Order in which to pick items
+  status          String   @default("pending") // pending, picked, short_picked, cancelled
+  notes           String?  @db.Text
+  
+  pickList        PickList @relation(fields: [pickListId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([pickListId])
+  @@index([productId])
+  @@index([binLocationId])
+}
+
+model PackingSlip {
+  id              String   @id @default(uuid())
+  slipNumber      String   @unique @db.VarChar(100)
+  pickListId      String   @unique
+  orderId         String?  @db.VarChar(100)
+  warehouseId     String
+  status          String   @default("pending") // pending, packing, packed, shipped, cancelled
+  packedBy        String?  // Worker ID
+  packingStarted  DateTime?
+  packingCompleted DateTime?
+  shippingCarrier String?  @db.VarChar(100)
+  trackingNumber  String?  @db.VarChar(100)
+  weight          Float?
+  dimensions      Json?    // {length, width, height, unit}
+  notes           String?  @db.Text
+  
+  pickList        PickList @relation(fields: [pickListId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([warehouseId, status])
+  @@index([packedBy])
+  @@index([orderId])
+}
+
+model WarehouseWorker {
+  id              String   @id @default(uuid())
+  workerId        String   @unique @db.VarChar(100)
+  name            String   @db.VarChar(255)
+  email           String?  @db.VarChar(255)
+  warehouseId     String
+  role            String   @db.VarChar(50) // picker, packer, receiver, forklift_operator
+  isActive        Boolean  @default(true)
+  shiftStart      String?  @db.VarChar(10) // e.g., "08:00"
+  shiftEnd        String?  @db.VarChar(10) // e.g., "17:00"
+  
+  productivityLogs WarehouseProductivityLog[]
+  taskAssignments  WarehouseTaskAssignment[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([warehouseId, isActive])
+  @@index([role])
+}
+
+model WarehouseProductivityLog {
+  id              String   @id @default(uuid())
+  workerId        String
+  warehouseId     String
+  date            DateTime @db.Date
+  taskType        String   @db.VarChar(50) // picking, packing, putaway, cycle_count
+  tasksCompleted  Int      @default(0)
+  unitsProcessed  Float    @default(0)
+  hoursWorked     Float    @default(0)
+  efficiency      Float?   // Calculated: unitsProcessed / hoursWorked
+  notes           String?  @db.Text
+  
+  worker          WarehouseWorker @relation(fields: [workerId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([workerId, date, taskType])
+  @@index([warehouseId, date])
+  @@index([workerId, date])
+}
+
+model WarehouseTaskAssignment {
+  id              String   @id @default(uuid())
+  workerId        String
+  taskType        String   @db.VarChar(50) // picking, packing, putaway, cycle_count
+  taskId          String   // ID of the specific task (PickList, PutawayTask, etc.)
+  warehouseId     String
+  priority        Int      @default(0)
+  status          String   @default("assigned") // assigned, in_progress, completed, cancelled
+  assignedAt      DateTime @default(now())
+  startedAt       DateTime?
+  completedAt     DateTime?
+  estimatedDuration Float? // in minutes
+  actualDuration  Float?   // in minutes
+  
+  worker          WarehouseWorker @relation(fields: [workerId], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([workerId, status])
+  @@index([warehouseId, taskType, status])
+  @@index([priority])
+}
+
+// ─── Accounting Module (FI/CO) ─────────────────────────────
+
+model Account {
+  id              String   @id @default(uuid())
+  accountCode     String   @unique @db.VarChar(50) // e.g. "1000", "2000"
+  name            String   @db.VarChar(255)
+  type            String   @db.VarChar(50) // Asset, Liability, Equity, Revenue, Expense, COGS
+  subType         String?  @db.VarChar(100) // Current Asset, Fixed Asset, etc.
+  currency        String   @default("USD") @db.VarChar(10)
+  isActive        Boolean  @default(true)
+  balance         Float    @default(0)
+  
+  // Hierarchical structure
+  parentId        String?
+  parent          Account? @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children        Account[] @relation("AccountHierarchy")
+  
+  // Control account flag
+  isControlAccount Boolean @default(false)
+  
+  journalLines    JournalLine[]
+  bankAccounts    BankAccount[]
+  budgetLineItems BudgetLineItem[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([type, isActive])
+  @@index([parentId])
+}
+
+model JournalEntry {
+  id              String   @id @default(uuid())
+  entryNumber     String   @unique @db.VarChar(100)
+  transactionCode String?  @unique @db.VarChar(50) // Unique transaction code (e.g., "TXN-000001")
+  date            DateTime
+  postingDate     DateTime?
+  description     String   @db.Text
+  referenceId     String?  @db.VarChar(100) // e.g., Invoice ID
+  sourceModule    String   @db.VarChar(50) // sales, purchasing, inventory, manual
+  status          String   @default("draft") // draft, posted, voided
+  
+  lines           JournalLine[]
+
+  createdBy       String
+  user            User     @relation(fields: [createdBy], references: [id])
+  
+  // Period locking
+  fiscalPeriod    String?  @db.VarChar(20) // e.g., "2024-01"
+  isLocked        Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status, date])
+  @@index([fiscalPeriod])
+  @@index([transactionCode])
+}
+
+model JournalLine {
+  id              String   @id @default(uuid())
+  journalEntryId  String
+  accountId       String
+  debit           Float    @default(0)
+  credit          Float    @default(0)
+  description     String?  @db.Text
+  
+  // Cost center and project tracking
+  costCenter      String?  @db.VarChar(100)
+  projectId       String?  @db.VarChar(100)
+
+  journalEntry    JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account         Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  
+  @@index([accountId])
+  @@index([journalEntryId])
+}
+
+model Invoice {
+  id              String   @id @default(uuid())
+  invoiceNo       String   @unique @db.VarChar(100)
+  type            String   @db.VarChar(50) // AR (Receivable) or AP (Payable)
+  customerId      String?
+  supplierId      String?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  issueDate       DateTime
+  dueDate         DateTime
+  subtotal        Float
+  taxAmount       Float    @default(0)
+  total           Float
+  amountPaid      Float    @default(0)
+  status          String   @default("unpaid") // unpaid, partial, paid, voided
+  
+  // Approval workflow
+  approvalStatus  String   @default("pending") // pending, approved, rejected
+  approvedBy      String?
+  approvedAt      DateTime?
+  
+  // Additional AP fields
+  vendorName      String?  @db.VarChar(255)
+  vendorAddress   String?  @db.Text
+  description     String?  @db.Text
+  notes           String?  @db.Text
+  
+  // Payment tracking
+  payments        Payment[]
+  lineItems       InvoiceLineItem[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([type, status])
+  @@index([dueDate])
+  @@index([customerId])
+  @@index([supplierId])
+}
+
+// Invoice Line Item model for detailed AP/AR tracking
+model InvoiceLineItem {
+  id              String   @id @default(uuid())
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  lineNumber      Int
+  description     String   @db.Text
+  quantity        Float    @default(1)
+  unitPrice       Float
+  amount          Float
+  taxAmount       Float    @default(0)
+  
+  // Optional product reference
+  productId       String?
+  accountId       String?  // GL Account for expense categorization
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([invoiceId])
+  @@unique([invoiceId, lineNumber])
+}
+
+// Payment model for AP/AR
+model Payment {
+  id              String   @id @default(uuid())
+  paymentNo       String   @unique @db.VarChar(100)
+  transactionCode String?  @unique @db.VarChar(50) // Unique transaction code (e.g., "TXN-000001")
+  invoiceId       String
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  
+  amount          Float
+  paymentDate     DateTime
+  paymentMethod   String   @db.VarChar(50) // cash, check, bank_transfer, credit_card
+  referenceNo     String?  @db.VarChar(100)
+  notes           String?  @db.Text
+  
+  // Bank account tracking
+  bankAccountId   String?
+  bankAccount     BankAccount? @relation(fields: [bankAccountId], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([invoiceId])
+  @@index([paymentDate])
+  @@index([transactionCode])
+}
+
+// Bank Account model
+model BankAccount {
+  id              String   @id @default(uuid())
+  accountName     String   @db.VarChar(255)
+  accountNumber   String   @db.VarChar(100)
+  bankName        String   @db.VarChar(255)
+  currency        String   @default("USD") @db.VarChar(10)
+  balance         Float    @default(0)
+  isActive        Boolean  @default(true)
+  
+  // Link to GL Account
+  glAccountId     String?
+  glAccount       Account? @relation(fields: [glAccountId], references: [id])
+  
+  payments        Payment[]
+  statements      BankStatement[]
+  reconciliations BankReconciliation[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([isActive])
+}
+
+// Bank Statement model
+model BankStatement {
+  id              String   @id @default(uuid())
+  statementNo     String   @unique @db.VarChar(100)
+  bankAccountId   String
+  bankAccount     BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  
+  statementDate   DateTime
+  openingBalance  Float
+  closingBalance  Float
+  
+  transactions    BankTransaction[]
+  reconciliation  BankReconciliation?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([bankAccountId, statementDate])
+}
+
+// Bank Transaction model
+model BankTransaction {
+  id              String   @id @default(uuid())
+  statementId     String
+  statement       BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  
+  transactionDate DateTime
+  description     String   @db.Text
+  debit           Float    @default(0)
+  credit          Float    @default(0)
+  balance         Float
+  referenceNo     String?  @db.VarChar(100)
+  
+  // Reconciliation
+  isReconciled    Boolean  @default(false)
+  reconciledWith  String?  @db.VarChar(100) // Journal Entry ID or Payment ID
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([statementId])
+  @@index([isReconciled])
+}
+
+// Bank Reconciliation model
+model BankReconciliation {
+  id              String   @id @default(uuid())
+  reconciliationNo String  @unique @db.VarChar(100)
+  bankAccountId   String
+  bankAccount     BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+  
+  statementId     String   @unique
+  statement       BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+  
+  reconciliationDate DateTime
+  statementBalance Float
+  bookBalance     Float
+  difference      Float    @default(0)
+  status          String   @default("in_progress") // in_progress, completed
+  
+  adjustments     Json?    // Store adjustment entries
+  notes           String?  @db.Text
+  
+  reconciledBy    String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([bankAccountId])
+  @@index([status])
+}
+
+// Budget model
+model Budget {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  fiscalYear      String   @db.VarChar(20) // e.g., "2024"
+  startDate       DateTime
+  endDate         DateTime
+  status          String   @default("draft") // draft, approved, active, closed
+  
+  approvedBy      String?
+  approvedAt      DateTime?
+  
+  lineItems       BudgetLineItem[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([fiscalYear, status])
+}
+
+// Budget Line Item model
+model BudgetLineItem {
+  id              String   @id @default(uuid())
+  budgetId        String
+  budget          Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  
+  accountId       String
+  account         Account  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  
+  period          String   @db.VarChar(20) // e.g., "2024-01" for monthly
+  budgetedAmount  Float
+  actualAmount    Float    @default(0)
+  variance        Float    @default(0) // actualAmount - budgetedAmount
+  variancePercent Float    @default(0) // (variance / budgetedAmount) * 100
+  
+  costCenter      String?  @db.VarChar(100)
+  projectId       String?  @db.VarChar(100)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([budgetId, accountId, period])
+  @@index([budgetId])
+  @@index([accountId])
+}
+
+// Fixed Asset model
+model FixedAsset {
+  id              String   @id @default(uuid())
+  assetNumber     String   @unique @db.VarChar(100)
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  category        String   @db.VarChar(100) // Building, Equipment, Vehicle, etc.
+  
+  // Financial details
+  acquisitionDate DateTime
+  acquisitionCost Float
+  salvageValue    Float    @default(0)
+  usefulLife      Int      // in months
+  
+  // Depreciation
+  depreciationMethod String @db.VarChar(50) // straight_line, declining_balance
+  accumulatedDepreciation Float @default(0)
+  netBookValue    Float
+  
+  // Status
+  status          String   @default("active") // active, disposed, fully_depreciated
+  disposalDate    DateTime?
+  disposalValue   Float?
+  
+  // GL Account links
+  assetAccountId  String?
+  depreciationAccountId String?
+  accumulatedDepAccountId String?
+  
+  // Depreciation history
+  depreciationEntries DepreciationEntry[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([category])
+}
+
+// Depreciation Entry model
+model DepreciationEntry {
+  id              String   @id @default(uuid())
+  assetId         String
+  asset           FixedAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  period          String   @db.VarChar(20) // e.g., "2024-01"
+  depreciationAmount Float
+  accumulatedDepreciation Float
+  netBookValue    Float
+  
+  journalEntryId  String?  @db.VarChar(100) // Link to generated journal entry
+  
+  createdAt       DateTime @default(now())
+  
+  @@unique([assetId, period])
+  @@index([assetId])
+  @@index([period])
+}
+
+// Fiscal Period model for period locking
+model FiscalPeriod {
+  id              String   @id @default(uuid())
+  period          String   @unique @db.VarChar(20) // e.g., "2024-01"
+  startDate       DateTime
+  endDate         DateTime
+  fiscalYear      String   @db.VarChar(20)
+  isLocked        Boolean  @default(false)
+  lockedBy        String?
+  lockedAt        DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([fiscalYear])
+  @@index([isLocked])
+}
+
+// ─── Document Management System (DMS) ──────────────────────
+
+model Document {
+  id              String   @id @default(uuid())
+  title           String   @db.VarChar(255)
+  description     String?  @db.Text
+  fileUrl         String   @db.VarChar(1024)
+  fileName        String   @db.VarChar(255)
+  fileType        String   @db.VarChar(100) // e.g. application/pdf
+  mimeType        String   @db.VarChar(100)
+  fileSize        Int      // in bytes
+  version         Int      @default(1)
+  
+  // Categorization and tagging
+  category        String   @default("other") @db.VarChar(50) // invoice, contract, receipt, report, certificate, other
+  tags            String[] // Array of tags for flexible categorization
+  
+  // Metadata
+  metadata        Json?    // Flexible JSON field for additional metadata
+  
+  // OCR and extracted data (Task 15.2)
+  ocrText         String?  @db.Text // Extracted text from OCR
+  ocrProcessed    Boolean  @default(false) // Whether OCR has been performed
+  ocrProcessedAt  DateTime? // When OCR was performed
+  extractedData   Json?    // Structured data extracted from document (e.g., invoice data)
+  
+  // Entity linking
+  linkedEntityType String? @db.VarChar(50) // e.g., "Order", "Customer", "Invoice", "Contract"
+  linkedEntityId   String? @db.VarChar(255)
+  
+  // Access control
+  accessLevel     String   @default("private") @db.VarChar(20) // public, private, restricted
+  allowedRoles    String[] // Array of role IDs that can access this document
+  allowedUsers    String[] // Array of user IDs that can access this document
+  
+  status          String   @default("active") // active, archived, deleted
+  
+  uploadedById    String
+  uploadedBy      User     @relation("DocumentUploadedBy", fields: [uploadedById], references: [id])
+  
+  // Version control (Task 15.3)
+  versions        DocumentVersion[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([uploadedById])
+  @@index([status])
+  @@index([category])
+  @@index([linkedEntityType, linkedEntityId])
+  @@index([accessLevel])
+  @@index([ocrProcessed])
+}
+
+// Document Version Control (Task 15.3)
+model DocumentVersion {
+  id              String   @id @default(uuid())
+  documentId      String
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  
+  versionNumber   Int
+  fileUrl         String   @db.VarChar(1024)
+  fileName        String   @db.VarChar(255)
+  fileSize        Int
+  changes         String?  @db.Text // Description of changes
+  
+  uploadedById    String
+  uploadedBy      User     @relation("DocumentVersionUploadedBy", fields: [uploadedById], references: [id])
+  
+  createdAt       DateTime @default(now())
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId])
+  @@index([uploadedById])
+}
+
+// E-Signature Requests (Task 15.4)
+model ESignatureRequest {
+  id              String   @id @default(uuid())
+  documentId      String
+  message         String?  @db.Text
+  expiryDate      DateTime?
+  status          String   @default("pending") // pending, completed, expired, cancelled
+  
+  signers         ESignatureSigner[]
+  
+  createdById     String
+  createdBy       User     @relation("ESignatureRequestCreatedBy", fields: [createdById], references: [id])
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completedAt     DateTime?
+
+  @@index([documentId])
+  @@index([status])
+  @@index([createdById])
+}
+
+model ESignatureSigner {
+  id              String   @id @default(uuid())
+  requestId       String
+  request         ESignatureRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  
+  email           String   @db.VarChar(255)
+  name            String   @db.VarChar(255)
+  signingOrder    Int      // Order in which signer should sign
+  
+  status          String   @default("pending") // pending, signed, declined
+  signedAt        DateTime?
+  ipAddress       String?  @db.VarChar(45)
+  signatureData   String?  @db.Text // Base64 encoded signature image or signature hash
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([requestId])
+  @@index([email])
+  @@index([status])
+}
+
+// Document Archival Policies (Task 15.6)
+model DocumentArchivalPolicy {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  category        String?  @db.VarChar(50) // Apply to specific category
+  retentionDays   Int      // Number of days to retain before archival
+  
+  isActive        Boolean  @default(true)
+  legalHold       Boolean  @default(false) // If true, documents are not archived
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+}
+
+// ─── Workflow & Approval System ────────────────────────────
+
+model WorkflowTemplate {
+  id              String   @id @default(uuid())
+  name            String   @unique @db.VarChar(255)
+  description     String?  @db.Text
+  module          String   @db.VarChar(100) // e.g. invoice, purchase_order
+  
+  steps           Json     // Stores array of { step: 1, roleId: "...", action: "approve" }
+
+  isActive        Boolean  @default(true)
+  requests        ApprovalRequest[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ApprovalRequest {
+  id              String   @id @default(uuid())
+  entityType      String   @db.VarChar(100) // e.g. journal_entry
+  entityId        String   @db.VarChar(100)
+  
+  requesterId     String
+  requester       User     @relation("ApprovalRequester", fields: [requesterId], references: [id])
+  
+  status          String   @default("pending") // pending, approved, rejected
+  currentStep     Int      @default(1)
+  
+  workflowId      String
+  workflow        WorkflowTemplate @relation(fields: [workflowId], references: [id])
+
+  history         ApprovalHistory[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([status])
+}
+
+model ApprovalHistory {
+  id              String   @id @default(uuid())
+  requestId       String
+  approverId      String
+  action          String   @db.VarChar(50) // approved, rejected
+  comments        String?  @db.Text
+  step            Int
+  
+  request         ApprovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  approver        User            @relation("ApprovalHistoryApprover", fields: [approverId], references: [id])
+
+  createdAt       DateTime @default(now())
+}
+
+// ─── Human Resources Management System (HRMS) ──────────────
+
+model Department {
+  id              String   @id @default(uuid())
+  name            String   @unique @db.VarChar(100)
+  description     String?  @db.Text
+  managerId       String?
+  manager         Employee? @relation("DepartmentManager", fields: [managerId], references: [id])
+  
+  employees       Employee[] @relation("EmployeeDepartment")
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Employee {
+  id              String   @id @default(uuid())
+  userId          String?  @unique
+  user            User?    @relation(fields: [userId], references: [id])
+  
+  employeeCode    String   @unique @db.VarChar(50)
+  firstName       String   @db.VarChar(100)
+  lastName        String   @db.VarChar(100)
+  position        String   @db.VarChar(100)
+  
+  departmentId    String?
+  department      Department? @relation("EmployeeDepartment", fields: [departmentId], references: [id])
+  managedDepts    Department[] @relation("DepartmentManager")
+
+  salary          Float    @default(0)
+  hireDate        DateTime
+  status          String   @default("active") // active, terminated, on_leave
+  
+  // Employment details
+  employmentType  String   @default("full_time") @db.VarChar(50) // full_time, part_time, contract, intern
+  managerId       String?
+  
+  // Contact information
+  email           String?  @db.VarChar(255)
+  phone           String?  @db.VarChar(50)
+  
+  // Skills and competencies
+  skills          Json?    // Array of skill objects
+  
+  attendances     Attendance[]
+  leaveRequests   LeaveRequest[]
+  payrolls        PayrollSlip[]
+  
+  // HCM relations
+  performanceReviews PerformanceReview[]
+  courseEnrollments  CourseEnrollment[]
+  payrollItems       PayrollItem[]
+  certifications     EmployeeCertification[]
+  documents          EmployeeDocument[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Attendance {
+  id              String   @id @default(uuid())
+  employeeId      String
+  date            DateTime @db.Date
+  clockIn         DateTime?
+  clockOut        DateTime?
+  status          String   @default("present") // present, absent, half_day, late
+  
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([employeeId, date])
+}
+
+model LeaveRequest {
+  id              String   @id @default(uuid())
+  employeeId      String
+  type            String   @db.VarChar(50) // sick, casual, annual, maternity
+  startDate       DateTime
+  endDate         DateTime
+  reason          String?  @db.Text
+  status          String   @default("pending") // pending, approved, rejected
+  
+  approvedById    String?
+  
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model PayrollSlip {
+  id              String   @id @default(uuid())
+  employeeId      String
+  periodStart     DateTime
+  periodEnd       DateTime
+  basicSalary     Float
+  allowances      Float    @default(0)
+  deductions      Float    @default(0)
+  netPay          Float
+  status          String   @default("draft") // draft, processed, paid
+  
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ExpenseReport {
+  id              String   @id @default(uuid())
+  reportNumber    String   @unique @db.VarChar(100)
+  employeeId      String
+  title           String   @db.VarChar(255)
+  description     String?  @db.Text
+  totalAmount     Float
+  currency        String   @default("USD") @db.VarChar(10)
+  status          String   @default("draft") // draft, submitted, approved, rejected, paid
+  submittedDate   DateTime?
+  approvedBy      String?
+  approvedDate    DateTime?
+  paidDate        DateTime?
+  
+  items           ExpenseItem[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([status])
+}
+
+model ExpenseItem {
+  id              String   @id @default(uuid())
+  expenseReportId String
+  date            DateTime
+  category        String   @db.VarChar(100) // travel, meals, accommodation, supplies, etc.
+  description     String   @db.Text
+  amount          Float
+  receiptUrl      String?  @db.Text
+  
+  expenseReport   ExpenseReport @relation(fields: [expenseReportId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([expenseReportId])
+}
+
+// ─── Manufacturing / Production (PP) ───────────────────────
+
+// ─── Manufacturing / Production (PP) ───────────────────────
+
+model BillOfMaterial {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  productId       String   @unique
+  product         Product  @relation(fields: [productId], references: [id])
+  version         String   @default("1.0") @db.VarChar(50)
+  isActive        Boolean  @default(true)
+  bomType         String   @default("production") @db.VarChar(50) // production, engineering, sales, phantom
+  baseQuantity    Float    @default(1)
+  baseUnit        String   @default("pcs") @db.VarChar(20)
+  
+  // Cost tracking
+  totalMaterialCost Float  @default(0)
+  totalLaborCost    Float  @default(0)
+  
+  // Validity period
+  validFrom       DateTime?
+  validTo         DateTime?
+  
+  // Relations
+  components      BOMComponent[]
+  operations      BOMOperation[]
+  productionOrders ProductionOrder[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([productId, version])
+  @@index([isActive])
+}
+
+model BOMComponent {
+  id              String   @id @default(uuid())
+  bomId           String
+  componentProductId String
+  componentProduct Product @relation("BOMRawMaterial", fields: [componentProductId], references: [id])
+  
+  quantity        Float
+  unit            String   @db.VarChar(20)
+  scrapFactor     Float    @default(0) // Percentage waste allowance
+  componentType   String   @default("raw_material") @db.VarChar(50) // raw_material, semi_finished, bought_out
+  mandatory       Boolean  @default(true)
+  sequence        Int      @default(0)
+  notes           String?  @db.Text
+  
+  bom             BillOfMaterial @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  
+  @@index([bomId])
+  @@index([componentProductId])
+}
+
+model BOMOperation {
+  id              String   @id @default(uuid())
+  bomId           String
+  operationNumber Int
+  operationName   String   @db.VarChar(255)
+  workCenterId    String?
+  workCenter      WorkCenter? @relation(fields: [workCenterId], references: [id])
+  
+  setupTime       Float    @default(0) // in minutes
+  runTime         Float    @default(0) // in minutes per unit
+  laborCost       Float    @default(0)
+  overheadCost    Float    @default(0)
+  description     String?  @db.Text
+  
+  bom             BillOfMaterial @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  
+  @@unique([bomId, operationNumber])
+  @@index([workCenterId])
+}
+
+model WorkCenter {
+  id              String   @id @default(uuid())
+  code            String   @unique @db.VarChar(50)
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  capacity        Float    @default(1) // Units per hour
+  costPerHour     Float    @default(0)
+  isActive        Boolean  @default(true)
+  
+  operations      BOMOperation[]
+  productionOrders ProductionOrder[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([isActive])
+}
+
+model ProductionOrder {
+  id              String   @id @default(uuid())
+  orderNumber     String   @unique @db.VarChar(100)
+  bomId           String
+  bom             BillOfMaterial @relation(fields: [bomId], references: [id])
+  productId       String
+  
+  quantity        Float
+  startDate       DateTime
+  endDate         DateTime?
+  scheduledEndDate DateTime?
+  
+  status          String   @default("planned") @db.VarChar(50) // planned, released, in_progress, completed, cancelled, on_hold
+  priority        String   @default("medium") @db.VarChar(20) // low, medium, high, urgent
+  
+  workCenterId    String?
+  workCenter      WorkCenter? @relation(fields: [workCenterId], references: [id])
+  
+  // Output tracking
+  actualOutput    Float    @default(0)
+  scrapQuantity   Float    @default(0)
+  
+  // Costing
+  actualMaterialCost Float @default(0)
+  actualLaborCost    Float @default(0)
+  
+  notes           String?  @db.Text
+  
+  // Relations
+  operations      ProductionOrderOperation[]
+  materialConsumption MaterialConsumption[]
+  qualityInspections QualityInspection[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([productId])
+  @@index([startDate])
+}
+
+model ProductionOrderOperation {
+  id              String   @id @default(uuid())
+  productionOrderId String
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  
+  operationNumber Int
+  operationName   String   @db.VarChar(255)
+  workCenterId    String?
+  
+  status          String   @default("pending") @db.VarChar(50) // pending, in_progress, completed, skipped
+  startTime       DateTime?
+  endTime         DateTime?
+  actualDuration  Float?   // in minutes
+  
+  operatorId      String?
+  notes           String?  @db.Text
+  
+  @@unique([productionOrderId, operationNumber])
+  @@index([productionOrderId])
+  @@index([status])
+}
+
+model MaterialConsumption {
+  id              String   @id @default(uuid())
+  productionOrderId String
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  
+  productId       String
+  quantity        Float
+  unit            String   @db.VarChar(20)
+  batchNumber     String?  @db.VarChar(100)
+  serialNumbers   String[] // For serial-tracked items
+  
+  consumptionType String   @default("manual") @db.VarChar(50) // manual, backflush
+  consumedAt      DateTime @default(now())
+  consumedBy      String?
+  
+  notes           String?  @db.Text
+  
+  @@index([productionOrderId])
+  @@index([productId])
+}
+
+model QualityInspection {
+  id              String   @id @default(uuid())
+  inspectionNumber String  @unique @db.VarChar(100)
+  
+  // Can be linked to production order or inventory receipt
+  productionOrderId String?
+  productionOrder ProductionOrder? @relation(fields: [productionOrderId], references: [id])
+  
+  productId       String
+  quantity        Float
+  batchNumber     String?  @db.VarChar(100)
+  
+  inspectionType  String   @db.VarChar(50) // incoming, in_process, final, random
+  inspectionDate  DateTime @default(now())
+  inspectorId     String?
+  
+  status          String   @default("pending") @db.VarChar(50) // pending, in_progress, passed, failed, conditional
+  result          String?  @db.VarChar(50) // accept, reject, rework
+  
+  // Inspection details
+  checkpoints     Json?    // Array of inspection checkpoints with results
+  defectsFound    Int      @default(0)
+  notes           String?  @db.Text
+  
+  // Quarantine
+  quarantined     Boolean  @default(false)
+  quarantineLocation String? @db.VarChar(255)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([productionOrderId])
+  @@index([productId])
+  @@index([status])
+  @@index([inspectionDate])
+}
+
+model MRPRun {
+  id              String   @id @default(uuid())
+  runNumber       String   @unique @db.VarChar(100)
+  runDate         DateTime @default(now())
+  planningHorizon Int      // days
+  
+  status          String   @default("pending") @db.VarChar(50) // pending, running, completed, failed
+  
+  // Results
+  plannedOrders   Json?    // Array of planned production orders
+  purchaseRequisitions Json? // Array of purchase requisitions
+  
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorMessage    String?  @db.Text
+  
+  createdBy       String?
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([runDate])
+}
+
+// ─── BI & Reporting ────────────────────────────────────────
+
+model ReportTemplate {
+  id              String   @id @default(uuid())
+  name            String   @unique @db.VarChar(255)
+  module          String   @db.VarChar(100)
+  sqlQuery        String   @db.Text
+  columns         Json     // Array of column definitions
+  createdById     String
+  user            User     @relation("ReportCreator", fields: [createdById], references: [id])
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model DashboardWidget {
+  id              String   @id @default(uuid())
+  userId          String
+  title           String   @db.VarChar(255)
+  type            String   @db.VarChar(50) // chart, metric, table
+  dataSource      String   @db.VarChar(100) // API endpoint or report name
+  positionX       Int      @default(0)
+  positionY       Int      @default(0)
+  width           Int      @default(2)
+  height          Int      @default(2)
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Integration & Webhooks ────────────────────────────────
+
+model Webhook {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  url             String   @db.VarChar(1024)
+  events          String[] // Array of event triggers (e.g., "invoice.created")
+  secret          String?  @db.VarChar(255)
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ApiKey {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  key             String   @unique @db.VarChar(255)
+  userId          String
+  isActive        Boolean  @default(true)
+  lastUsed        DateTime?
+  
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// ─── Advanced Inventory Management ────────────────────────
+
+model PurchaseRequisition {
+  id              String   @id @default(uuid())
+  requisitionNo   String   @unique @db.VarChar(100)
+  productId       String
+  quantity        Float
+  requestedBy     String
+  reason          String   @db.Text // e.g., "Below reorder point", "Manual request"
+  status          String   @default("pending") // pending, approved, rejected, converted_to_po
+  approvedBy      String?
+  approvedDate    DateTime?
+  purchaseOrderId String?  @db.VarChar(100)
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([productId])
+  @@index([status])
+  @@index([requestedBy])
+}
+
+model InventoryValuation {
+  id              String   @id @default(uuid())
+  productId       String
+  warehouseId     String
+  valuationDate   DateTime
+  method          String   @db.VarChar(50) // FIFO, LIFO, weighted_average, standard_cost
+  quantity        Float
+  unitCost        Float
+  totalValue      Float
+  
+  createdAt       DateTime @default(now())
+
+  @@index([productId, warehouseId, valuationDate])
+  @@index([valuationDate])
+}
+
+// ─── Supplier/Vendor Management ───────────────────────────
+
+model Supplier {
+  id              String   @id @default(uuid())
+  vendorCode      String   @unique @db.VarChar(50) // Unique vendor code (e.g., "VEN-000001")
+  name            String   @db.VarChar(255)
+  contactPerson   String?  @db.VarChar(255)
+  email           String?  @db.VarChar(255)
+  phone           String?  @db.VarChar(50)
+  address         String?  @db.Text
+  city            String?  @db.VarChar(100)
+  state           String?  @db.VarChar(100)
+  country         String?  @db.VarChar(100)
+  postalCode      String?  @db.VarChar(20)
+  taxId           String?  @db.VarChar(100) // Tax ID / VAT number
+  paymentTerms    String?  @db.VarChar(100) // e.g., "Net 30", "Net 60"
+  creditLimit     Float    @default(0)
+  currentBalance  Float    @default(0) // Outstanding balance
+  status          String   @default("active") @db.VarChar(50) // active, inactive, blocked
+  notes           String?  @db.Text
+  
+  invoices        Invoice[]
+  performance     SupplierPerformance[]
+  portalAccess    VendorPortalAccess?
+  leadTimes       SupplierLeadTime[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([name])
+}
+
+// ─── Notifications ─────────────────────────────────────────
+
+model Notification {
+  id              String   @id @default(uuid())
+  userId          String
+  title           String   @db.VarChar(255)
+  message         String   @db.Text
+  type            String   @default("general") @db.VarChar(50) // general, workflow, system, alert
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  metadata        Json?    // Additional data
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+// ─── Workflow Builder (No-Code Automation) ─────────────────
+
+model Workflow {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  isActive        Boolean  @default(false)
+  
+  // Trigger configuration (Requirement 7.2)
+  triggerType     String   @db.VarChar(50) // record_created, record_updated, field_changed, scheduled, manual, webhook
+  triggerEntity   String?  @db.VarChar(100) // Entity name for record triggers
+  triggerFields   String[] // Fields to watch for field_changed trigger
+  cronExpression  String?  @db.VarChar(100) // Cron expression for scheduled triggers
+  webhookUrl      String?  @db.VarChar(1024) // Webhook URL for webhook triggers
+  
+  // Workflow definition
+  steps           WorkflowStep[]
+  executions      WorkflowExecution[]
+  
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([isActive])
+  @@index([triggerType])
+  @@index([triggerEntity])
+}
+
+model WorkflowStep {
+  id              String   @id @default(uuid())
+  workflowId      String
+  workflow        Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  stepOrder       Int      // Execution order
+  stepType        String   @db.VarChar(50) // condition, action
+  
+  // Condition configuration (Requirement 7.3)
+  conditionField  String?  @db.VarChar(100)
+  conditionOperator String? @db.VarChar(50) // equals, not_equals, greater_than, less_than, contains, starts_with, is_empty
+  conditionValue  String?  @db.Text
+  logicalOperator String?  @db.VarChar(10) // AND, OR (for combining with next condition)
+  
+  // Action configuration (Requirement 7.4)
+  actionType      String?  @db.VarChar(50) // send_email, send_notification, create_record, update_record, delete_record, call_webhook
+  actionConfig    Json?    // Action-specific configuration (email template, recipients, record data, etc.)
+  
+  // Error handling (Requirement 7.5)
+  retryOnFailure  Boolean  @default(false)
+  maxRetries      Int      @default(3)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([workflowId, stepOrder])
+  @@index([workflowId])
+}
+
+model WorkflowExecution {
+  id              String   @id @default(uuid())
+  workflowId      String
+  workflow        Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  
+  status          String   @default("running") @db.VarChar(50) // running, completed, failed, cancelled
+  triggerData     Json?    // Data that triggered the workflow
+  
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  
+  // Error tracking (Requirement 7.5)
+  errorMessage    String?  @db.Text
+  errorStep       Int?     // Step number where error occurred
+  
+  steps           WorkflowExecutionStep[]
+  
+  @@index([workflowId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model WorkflowExecutionStep {
+  id              String   @id @default(uuid())
+  executionId     String
+  execution       WorkflowExecution @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  
+  stepOrder       Int
+  stepType        String   @db.VarChar(50)
+  status          String   @default("pending") @db.VarChar(50) // pending, running, completed, failed, skipped
+  
+  // Execution details
+  startedAt       DateTime?
+  completedAt     DateTime?
+  result          Json?    // Result of the step execution
+  errorMessage    String?  @db.Text
+  
+  // Retry tracking (Requirement 7.5)
+  retryCount      Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([executionId, stepOrder])
+  @@index([executionId])
+  @@index([status])
+}
+
+// Workflow Templates (Requirement 7.8)
+model WorkflowTemplateLibrary {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  category        String   @db.VarChar(100) // inventory, sales, finance, hr, etc.
+  icon            String?  @db.VarChar(50)
+  
+  // Template definition (JSON representation of workflow)
+  templateData    Json     // Contains trigger, conditions, actions configuration
+  
+  isPublic        Boolean  @default(true)
+  usageCount      Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([category])
+  @@index([isPublic])
+}
+
+// ─── Supply Chain Management (SCM) Module ──────────────────
+
+// Demand Forecasting (Task 20.1)
+model DemandForecast {
+  id              String   @id @default(uuid())
+  productId       String
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  
+  forecastMethod  String   @db.VarChar(50) // moving_average, exponential_smoothing, linear_regression
+  forecastPeriods Int      // Number of periods forecasted
+  
+  historicalData  Json     // Array of {date, quantity}
+  forecastedDemand Json    // Array of {date, forecastedDemand}
+  
+  accuracy        Float    // MAPE (Mean Absolute Percentage Error)
+  mae             Float?   // Mean Absolute Error
+  rmse            Float?   // Root Mean Square Error
+  
+  parameters      Json?    // Method-specific parameters (alpha, periods, etc.)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([productId])
+  @@index([forecastMethod])
+  @@index([createdAt])
+}
+
+// Supply Planning (Task 20.2)
+model SupplyPlan {
+  id              String   @id @default(uuid())
+  planNumber      String   @unique @db.VarChar(100)
+  
+  planningHorizonStart DateTime
+  planningHorizonEnd   DateTime
+  
+  status          String   @default("draft") @db.VarChar(50) // draft, approved, executed
+  
+  supplyActions   Json     // Array of supply actions (purchase, production, transfer)
+  constraints     Json?    // Planning constraints
+  
+  totalCost       Float    @default(0)
+  serviceLevelTarget Float @default(95) // Target service level percentage
+  
+  approvedBy      String?
+  approvedAt      DateTime?
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([planningHorizonStart])
+}
+
+// Shipment Tracking (Task 20.3)
+model Shipment {
+  id              String   @id @default(uuid())
+  shipmentNumber  String   @unique @db.VarChar(100)
+  
+  orderId         String?  @db.VarChar(100) // Reference to order
+  
+  carrier         String   @db.VarChar(100) // FedEx, UPS, DHL, etc.
+  trackingNumber  String   @db.VarChar(255)
+  
+  originAddress   String   @db.Text
+  originCity      String?  @db.VarChar(100)
+  originState     String?  @db.VarChar(100)
+  originCountry   String   @db.VarChar(100)
+  originPostalCode String? @db.VarChar(20)
+  
+  destinationAddress   String @db.Text
+  destinationCity      String? @db.VarChar(100)
+  destinationState     String? @db.VarChar(100)
+  destinationCountry   String @db.VarChar(100)
+  destinationPostalCode String? @db.VarChar(20)
+  
+  status          String   @default("created") @db.VarChar(50) // created, picked, packed, shipped, in_transit, out_for_delivery, delivered, exception
+  
+  estimatedDelivery DateTime?
+  actualDelivery    DateTime?
+  
+  weight          Float?   // in kg
+  dimensions      Json?    // {length, width, height} in cm
+  
+  items           ShipmentItem[]
+  trackingEvents  ShipmentTrackingEvent[]
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([trackingNumber])
+  @@index([status])
+  @@index([carrier])
+  @@index([orderId])
+}
+
+model ShipmentItem {
+  id              String   @id @default(uuid())
+  shipmentId      String
+  shipment        Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  
+  productId       String
+  productName     String   @db.VarChar(255)
+  quantity        Float
+  unit            String   @db.VarChar(20)
+  
+  @@index([shipmentId])
+  @@index([productId])
+}
+
+model ShipmentTrackingEvent {
+  id              String   @id @default(uuid())
+  shipmentId      String
+  shipment        Shipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  
+  eventDate       DateTime
+  status          String   @db.VarChar(50)
+  location        String?  @db.VarChar(255)
+  description     String   @db.Text
+  
+  createdAt       DateTime @default(now())
+  
+  @@index([shipmentId])
+  @@index([eventDate])
+}
+
+// Supplier Performance Management (Task 20.4)
+model SupplierPerformance {
+  id              String   @id @default(uuid())
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  evaluationPeriodStart DateTime
+  evaluationPeriodEnd   DateTime
+  
+  // Performance Metrics
+  totalOrders     Int      @default(0)
+  onTimeDeliveries Int     @default(0)
+  lateDeliveries  Int      @default(0)
+  onTimeDeliveryRate Float @default(0) // Percentage
+  
+  qualityScore    Float    @default(0) // 0-100
+  defectRate      Float    @default(0) // Percentage
+  
+  averageLeadTime Float    @default(0) // in days
+  priceCompetitiveness Float @default(0) // 0-100
+  
+  overallRating   Float    @default(0) // 0-100
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([supplierId])
+  @@index([evaluationPeriodStart])
+  @@index([overallRating])
+}
+
+// Vendor Collaboration Portal (Task 20.6)
+model VendorPortalAccess {
+  id              String   @id @default(uuid())
+  supplierId      String   @unique
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  username        String   @unique @db.VarChar(100)
+  password        String   // Hashed password
+  
+  isActive        Boolean  @default(true)
+  lastLogin       DateTime?
+  
+  permissions     Json?    // Portal permissions
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([username])
+  @@index([isActive])
+}
+
+model VendorPurchaseOrder {
+  id              String   @id @default(uuid())
+  poNumber        String   @unique @db.VarChar(100)
+  supplierId      String
+  
+  issueDate       DateTime
+  expectedDeliveryDate DateTime?
+  
+  status          String   @default("pending") @db.VarChar(50) // pending, confirmed, in_production, shipped, delivered, cancelled
+  
+  subtotal        Float
+  taxAmount       Float    @default(0)
+  total           Float
+  
+  items           VendorPurchaseOrderItem[]
+  
+  // Vendor confirmation
+  confirmedBy     String?  @db.VarChar(255)
+  confirmedAt     DateTime?
+  vendorNotes     String?  @db.Text
+  
+  // Delivery tracking
+  estimatedShipDate DateTime?
+  actualShipDate    DateTime?
+  trackingNumber    String?  @db.VarChar(255)
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([supplierId])
+  @@index([status])
+  @@index([poNumber])
+}
+
+model VendorPurchaseOrderItem {
+  id              String   @id @default(uuid())
+  poId            String
+  po              VendorPurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  
+  lineNumber      Int
+  productId       String?
+  productName     String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  quantity        Float
+  unit            String   @db.VarChar(20)
+  unitPrice       Float
+  amount          Float
+  
+  expectedDeliveryDate DateTime?
+  
+  @@index([poId])
+  @@unique([poId, lineNumber])
+}
+
+// Lead Time Tracking (Task 20.5)
+model SupplierLeadTime {
+  id              String   @id @default(uuid())
+  supplierId      String
+  supplier        Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  productId       String?
+  productCategory String?  @db.VarChar(100)
+  
+  route           String?  @db.VarChar(255) // Shipping route
+  
+  averageLeadTime Float    // in days
+  minLeadTime     Float    // in days
+  maxLeadTime     Float    // in days
+  
+  sampleSize      Int      @default(0) // Number of orders used for calculation
+  
+  lastUpdated     DateTime @default(now())
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([supplierId])
+  @@index([productId])
+  @@index([productCategory])
+}
+
+// ─── Quality Management System (Task 21) ───────────────────
+
+// Inspection Plan (Task 21.1)
+model InspectionPlan {
+  id              String   @id @default(uuid())
+  planNumber      String   @unique @db.VarChar(100)
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  productId       String?
+  product         Product? @relation("InspectionPlanProduct", fields: [productId], references: [id], onDelete: SetNull)
+  
+  inspectionType  String   @default("receiving") @db.VarChar(50) // receiving, in_process, final, periodic
+  
+  // Sampling configuration
+  samplingType    String   @default("none") @db.VarChar(50) // none, random, systematic, stratified
+  sampleSize      Int?
+  samplePercentage Float?
+  acceptanceLevel Float?   // AQL (Acceptable Quality Level)
+  
+  isActive        Boolean  @default(true)
+  
+  checkpoints     InspectionCheckpoint[]
+  results         InspectionResult[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([productId])
+  @@index([isActive])
+  @@index([inspectionType])
+}
+
+// Inspection Checkpoint (Task 21.1)
+model InspectionCheckpoint {
+  id              String   @id @default(uuid())
+  inspectionPlanId String
+  plan            InspectionPlan @relation(fields: [inspectionPlanId], references: [id], onDelete: Cascade)
+  
+  checkpointNumber Int
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  checkType       String   @default("visual") @db.VarChar(50) // visual, measurement, functional, destructive
+  measurementUnit String?  @db.VarChar(50)
+  
+  // Measurement criteria
+  targetValue     Float?
+  minValue        Float?
+  maxValue        Float?
+  
+  isMandatory     Boolean  @default(true)
+  
+  checkpointResults InspectionCheckpointResult[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([inspectionPlanId, checkpointNumber])
+  @@index([inspectionPlanId])
+}
+
+// Inspection Result (Task 21.1)
+model InspectionResult {
+  id              String   @id @default(uuid())
+  resultNumber    String   @unique @db.VarChar(100)
+  
+  inspectionPlanId String
+  plan            InspectionPlan @relation(fields: [inspectionPlanId], references: [id], onDelete: Restrict)
+  
+  productId       String?
+  product         Product? @relation("InspectionResultProduct", fields: [productId], references: [id], onDelete: SetNull)
+  
+  batchNumber     String?  @db.VarChar(100)
+  lotNumber       String?  @db.VarChar(100)
+  
+  inspectionDate  DateTime
+  inspectedBy     String
+  
+  quantityInspected Float
+  quantityAccepted  Float  @default(0)
+  quantityRejected  Float  @default(0)
+  
+  status          String   @default("pending") @db.VarChar(50) // pending, in_progress, passed, failed, conditional
+  overallResult   String?  @db.VarChar(50) // pass, fail, conditional
+  
+  notes           String?  @db.Text
+  
+  checkpointResults InspectionCheckpointResult[]
+  nonConformances NonConformance[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([inspectionPlanId])
+  @@index([productId])
+  @@index([status])
+  @@index([inspectionDate])
+  @@index([batchNumber])
+}
+
+// Inspection Checkpoint Result (Task 21.1)
+model InspectionCheckpointResult {
+  id              String   @id @default(uuid())
+  
+  inspectionResultId String
+  inspectionResult InspectionResult @relation(fields: [inspectionResultId], references: [id], onDelete: Cascade)
+  
+  checkpointId    String
+  checkpoint      InspectionCheckpoint @relation(fields: [checkpointId], references: [id], onDelete: Restrict)
+  
+  result          String   @default("pending") @db.VarChar(50) // pass, fail, na
+  measuredValue   Float?
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([inspectionResultId])
+  @@index([checkpointId])
+}
+
+// Non-Conformance (Task 21.2)
+model NonConformance {
+  id              String   @id @default(uuid())
+  ncNumber        String   @unique @db.VarChar(100)
+  
+  title           String   @db.VarChar(255)
+  description     String   @db.Text
+  
+  productId       String?
+  product         Product? @relation("NonConformanceProduct", fields: [productId], references: [id], onDelete: SetNull)
+  
+  batchNumber     String?  @db.VarChar(100)
+  
+  inspectionResultId String?
+  inspectionResult InspectionResult? @relation(fields: [inspectionResultId], references: [id], onDelete: SetNull)
+  
+  severity        String   @default("minor") @db.VarChar(50) // critical, major, minor
+  status          String   @default("open") @db.VarChar(50) // open, investigating, resolved, closed
+  
+  detectedDate    DateTime
+  detectedBy      String
+  
+  quantityAffected Float?
+  
+  // Disposition
+  disposition     String?  @db.VarChar(50) // rework, scrap, use_as_is, return_to_supplier
+  
+  // Root Cause Analysis
+  rootCause       String?  @db.Text
+  rootCauseCategory String? @db.VarChar(100) // material, process, equipment, human, environment, method
+  
+  // Assignment and tracking
+  assignedTo      String?
+  targetCloseDate DateTime?
+  actualCloseDate DateTime?
+  closedBy        String?
+  
+  correctiveActions CorrectiveAction[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([productId])
+  @@index([status])
+  @@index([severity])
+  @@index([inspectionResultId])
+  @@index([assignedTo])
+  @@index([detectedDate])
+}
+
+// Corrective Action (CAPA - Task 21.2)
+model CorrectiveAction {
+  id              String   @id @default(uuid())
+  caNumber        String   @unique @db.VarChar(100)
+  
+  nonConformanceId String
+  nonConformance  NonConformance @relation(fields: [nonConformanceId], references: [id], onDelete: Cascade)
+  
+  actionType      String   @default("corrective") @db.VarChar(50) // corrective, preventive
+  description     String   @db.Text
+  
+  assignedTo      String
+  dueDate         DateTime
+  completedDate   DateTime?
+  
+  status          String   @default("open") @db.VarChar(50) // open, in_progress, completed, verified, closed
+  
+  // Effectiveness verification
+  effectiveness   String?  @db.VarChar(50) // effective, ineffective, pending_verification
+  verifiedBy      String?
+  verifiedDate    DateTime?
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([nonConformanceId])
+  @@index([status])
+  @@index([assignedTo])
+  @@index([dueDate])
+}
+
+// ─── Human Capital Management (HCM) Module ─────────────────
+
+// Job Requisition model for recruitment
+model JobRequisition {
+  id              String   @id @default(uuid())
+  requisitionNo   String   @unique @db.VarChar(100)
+  title           String   @db.VarChar(255)
+  department      String   @db.VarChar(100)
+  positions       Int      @default(1)
+  description     String   @db.Text
+  requirements    Json     // Array of requirement strings
+  
+  status          String   @default("draft") @db.VarChar(50) // draft, open, in_progress, filled, cancelled
+  priority        String   @default("medium") @db.VarChar(20) // low, medium, high, urgent
+  
+  // Approval tracking
+  approvalStatus  String   @default("pending") @db.VarChar(50) // pending, approved, rejected
+  approvedBy      String?
+  approvedDate    DateTime?
+  
+  // Posting details
+  postedDate      DateTime?
+  closedDate      DateTime?
+  
+  // Relations
+  candidates      Candidate[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([status])
+  @@index([department])
+}
+
+// Candidate model for applicant tracking
+model Candidate {
+  id              String   @id @default(uuid())
+  requisitionId   String
+  requisition     JobRequisition @relation(fields: [requisitionId], references: [id], onDelete: Cascade)
+  
+  // Personal information
+  firstName       String   @db.VarChar(100)
+  lastName        String   @db.VarChar(100)
+  email           String   @db.VarChar(255)
+  phone           String?  @db.VarChar(50)
+  
+  // Application details
+  resumeUrl       String?  @db.Text
+  coverLetter     String?  @db.Text
+  appliedDate     DateTime @default(now())
+  
+  // Recruitment stage
+  stage           String   @default("applied") @db.VarChar(50) // applied, screening, phone_interview, technical_interview, final_interview, offer_extended, hired, rejected
+  
+  // Scoring
+  score           Float    @default(0) // 0-100
+  
+  // Source tracking
+  source          String?  @db.VarChar(100) // job_board, referral, company_website, linkedin, etc.
+  
+  // Relations
+  interviews      Interview[]
+  
+  // Hiring outcome
+  hiredDate       DateTime?
+  employeeId      String?  // Link to Employee if hired
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([requisitionId, stage])
+  @@index([email])
+}
+
+// Interview model for scheduling and tracking
+model Interview {
+  id              String   @id @default(uuid())
+  candidateId     String
+  candidate       Candidate @relation(fields: [candidateId], references: [id], onDelete: Cascade)
+  
+  interviewType   String   @db.VarChar(50) // phone, technical, behavioral, panel, final
+  scheduledDate   DateTime
+  duration        Int      @default(60) // minutes
+  
+  // Interviewer details
+  interviewerId   String?
+  interviewerName String?  @db.VarChar(255)
+  
+  // Location/method
+  location        String?  @db.VarChar(255) // office, video_call, phone
+  meetingLink     String?  @db.Text
+  
+  // Status and outcome
+  status          String   @default("scheduled") @db.VarChar(50) // scheduled, completed, cancelled, no_show
+  rating          Float?   // 0-10
+  feedback        String?  @db.Text
+  recommendation  String?  @db.VarChar(50) // strong_hire, hire, maybe, no_hire
+  
+  completedDate   DateTime?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([candidateId])
+  @@index([scheduledDate])
+}
+
+// Enhanced Employee model with full employment details
+// Note: Basic Employee model already exists, we'll extend it with relations
+
+// Performance Review model
+model PerformanceReview {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  reviewPeriodStart DateTime
+  reviewPeriodEnd   DateTime
+  
+  reviewerId      String
+  reviewerName    String   @db.VarChar(255)
+  
+  // Goals and achievements
+  goals           Json     // Array of goal objects with description, weight, achievement, rating
+  
+  // Competencies
+  competencies    Json     // Array of competency ratings
+  
+  // Overall rating
+  overallRating   Float    // 0-5 scale
+  
+  // 360-degree feedback
+  selfAssessment  String?  @db.Text
+  managerFeedback String?  @db.Text
+  peerFeedback    Json?    // Array of peer feedback objects
+  
+  // Status
+  status          String   @default("draft") @db.VarChar(50) // draft, in_progress, completed, acknowledged
+  
+  // Dates
+  dueDate         DateTime?
+  completedDate   DateTime?
+  acknowledgedDate DateTime?
+  
+  comments        String?  @db.Text
+  developmentPlan String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([reviewPeriodEnd])
+}
+
+// Learning Course model
+model LearningCourse {
+  id              String   @id @default(uuid())
+  courseCode      String   @unique @db.VarChar(50)
+  title           String   @db.VarChar(255)
+  description     String   @db.Text
+  
+  // Course details
+  category        String   @db.VarChar(100)
+  level           String   @default("beginner") @db.VarChar(50) // beginner, intermediate, advanced
+  duration        Int      // in hours
+  
+  // Instructor
+  instructor      String?  @db.VarChar(255)
+  instructorBio   String?  @db.Text
+  
+  // Content
+  content         Json     // Array of course modules/lessons
+  
+  // Availability
+  isActive        Boolean  @default(true)
+  maxEnrollments  Int?
+  
+  // Prerequisites
+  prerequisites   Json?    // Array of prerequisite course IDs
+  
+  // Relations
+  enrollments     CourseEnrollment[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([category])
+  @@index([isActive])
+}
+
+// Course Enrollment model
+model CourseEnrollment {
+  id              String   @id @default(uuid())
+  courseId        String
+  course          LearningCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Enrollment details
+  enrolledDate    DateTime @default(now())
+  startDate       DateTime?
+  completionDate  DateTime?
+  
+  // Progress tracking
+  progress        Float    @default(0) // 0-100 percentage
+  status          String   @default("enrolled") @db.VarChar(50) // enrolled, in_progress, completed, dropped
+  
+  // Assessment
+  score           Float?   // 0-100
+  passed          Boolean  @default(false)
+  
+  // Certificate
+  certificateUrl  String?  @db.Text
+  certificateIssued DateTime?
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([courseId, employeeId])
+  @@index([employeeId])
+  @@index([status])
+}
+
+// Succession Plan model
+model SuccessionPlan {
+  id              String   @id @default(uuid())
+  positionTitle   String   @db.VarChar(255)
+  department      String   @db.VarChar(100)
+  
+  // Current incumbent
+  currentEmployeeId String?
+  
+  // Criticality
+  criticality     String   @default("medium") @db.VarChar(50) // low, medium, high, critical
+  
+  // Risk assessment
+  riskLevel       String   @default("medium") @db.VarChar(50) // low, medium, high
+  
+  // Succession candidates
+  candidates      Json     // Array of candidate objects with employeeId, readiness, developmentNeeds
+  
+  // Timeline
+  targetDate      DateTime?
+  
+  status          String   @default("active") @db.VarChar(50) // active, in_progress, completed, on_hold
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([department])
+  @@index([criticality])
+}
+
+// Payroll model
+model Payroll {
+  id              String   @id @default(uuid())
+  payrollNo       String   @unique @db.VarChar(100)
+  
+  // Payroll period
+  periodStart     DateTime
+  periodEnd       DateTime
+  paymentDate     DateTime
+  
+  // Country/region for localization
+  country         String   @db.VarChar(50)
+  currency        String   @default("USD") @db.VarChar(10)
+  
+  // Status
+  status          String   @default("draft") @db.VarChar(50) // draft, calculated, approved, processed, paid
+  
+  // Totals
+  totalGrossPay   Float    @default(0)
+  totalDeductions Float    @default(0)
+  totalNetPay     Float    @default(0)
+  
+  // Relations
+  payrollItems    PayrollItem[]
+  
+  // Processing details
+  processedBy     String?
+  processedDate   DateTime?
+  approvedBy      String?
+  approvedDate    DateTime?
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([periodEnd])
+  @@index([status])
+}
+
+// Payroll Item model (per employee)
+model PayrollItem {
+  id              String   @id @default(uuid())
+  payrollId       String
+  payroll         Payroll  @relation(fields: [payrollId], references: [id], onDelete: Cascade)
+  
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  // Earnings
+  basicSalary     Float
+  overtime        Float    @default(0)
+  bonus           Float    @default(0)
+  allowances      Json     // Array of allowance objects {type, amount}
+  
+  // Deductions
+  tax             Float    @default(0)
+  socialSecurity  Float    @default(0)
+  insurance       Float    @default(0)
+  otherDeductions Json     // Array of deduction objects {type, amount}
+  
+  // Calculated amounts
+  grossPay        Float
+  totalDeductions Float
+  netPay          Float
+  
+  // Tax forms and documents
+  taxFormUrl      String?  @db.Text
+  payslipUrl      String?  @db.Text
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([payrollId, employeeId])
+  @@index([employeeId])
+}
+
+// Employee Certification model
+model EmployeeCertification {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  certificationName String @db.VarChar(255)
+  issuingOrg      String   @db.VarChar(255)
+  issueDate       DateTime
+  expiryDate      DateTime?
+  
+  certificateUrl  String?  @db.Text
+  
+  status          String   @default("active") @db.VarChar(50) // active, expired, revoked
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([expiryDate])
+}
+
+// Employee Document model
+model EmployeeDocument {
+  id              String   @id @default(uuid())
+  employeeId      String
+  employee        Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  documentType    String   @db.VarChar(100) // contract, id_proof, tax_form, performance_review, etc.
+  documentName    String   @db.VarChar(255)
+  documentUrl     String   @db.Text
+  
+  uploadedBy      String?
+  uploadedDate    DateTime @default(now())
+  
+  expiryDate      DateTime?
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([employeeId])
+  @@index([documentType])
+}
+
+// ─── Enterprise Asset Management (EAM) Module ──────────────
+
+// Asset Registry model
+model Asset {
+  id              String   @id @default(uuid())
+  assetNumber     String   @unique @db.VarChar(100)
+  name            String   @db.VarChar(255)
+  category        String   @db.VarChar(50) // machinery, vehicle, building, equipment, it_asset
+  location        String   @db.VarChar(255)
+  department      String?  @db.VarChar(100)
+  status          String   @default("operational") @db.VarChar(50) // operational, maintenance, breakdown, retired, disposed
+  
+  // Acquisition details
+  acquisitionDate DateTime
+  acquisitionCost Float
+  currentValue    Float
+  
+  // Depreciation
+  depreciationMethod String? @db.VarChar(50) // straight_line, declining_balance, units_of_production
+  usefulLife      Int?     // in years
+  salvageValue    Float?
+  
+  // Asset details
+  specifications  Json     // Key-value pairs for asset specifications
+  qrCode          String?  @db.VarChar(255)
+  serialNumber    String?  @db.VarChar(100)
+  manufacturer    String?  @db.VarChar(255)
+  model           String?  @db.VarChar(255)
+  warrantyExpiry  DateTime?
+  
+  // Hierarchy
+  parentAssetId   String?
+  parentAsset     Asset?   @relation("AssetHierarchy", fields: [parentAssetId], references: [id])
+  childAssets     Asset[]  @relation("AssetHierarchy")
+  
+  // Relations
+  maintenancePlans MaintenancePlan[]
+  maintenanceTasks MaintenanceTask[]
+  maintenanceRecords MaintenanceRecord[]
+  healthRecords   AssetHealth[]
+  utilizationRecords AssetUtilization[]
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([category, status])
+  @@index([location])
+  @@index([parentAssetId])
+  @@index([assetNumber])
+}
+
+// Maintenance Plan model
+model MaintenancePlan {
+  id              String   @id @default(uuid())
+  planNumber      String   @unique @db.VarChar(100)
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  // Frequency
+  frequency       String   @db.VarChar(50) // daily, weekly, monthly, quarterly, yearly, usage_based
+  frequencyValue  Int?     // For usage-based (e.g., every 1000 hours)
+  
+  // Tasks and parts
+  tasks           String[] // Array of task descriptions
+  estimatedDuration Float  // in hours
+  requiredParts   String[] // Array of product IDs
+  
+  // Status
+  isActive        Boolean  @default(true)
+  lastExecuted    DateTime?
+  nextScheduled   DateTime?
+  
+  // Relations
+  maintenanceTasks MaintenanceTask[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([assetId, isActive])
+  @@index([nextScheduled])
+}
+
+// Maintenance Task model (Work Orders)
+model MaintenanceTask {
+  id              String   @id @default(uuid())
+  taskNumber      String   @unique @db.VarChar(100)
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  planId          String?
+  plan            MaintenancePlan? @relation(fields: [planId], references: [id])
+  
+  taskType        String   @db.VarChar(50) // preventive, corrective, predictive, breakdown
+  description     String   @db.Text
+  priority        String   @default("medium") @db.VarChar(50) // low, medium, high, critical
+  
+  // Scheduling
+  scheduledDate   DateTime
+  completedDate   DateTime?
+  
+  // Assignment
+  technicianId    String?
+  technicianName  String?  @db.VarChar(255)
+  
+  // Status
+  status          String   @default("scheduled") @db.VarChar(50) // scheduled, in_progress, completed, cancelled
+  
+  // Costs
+  actualDuration  Float?   // in hours
+  laborCost       Float?
+  partsCost       Float?
+  totalCost       Float?
+  
+  // Relations
+  maintenanceRecords MaintenanceRecord[]
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([assetId, status])
+  @@index([planId])
+  @@index([scheduledDate])
+  @@index([technicianId, status])
+}
+
+// Maintenance Record model (Completion records)
+model MaintenanceRecord {
+  id              String   @id @default(uuid())
+  taskId          String
+  task            MaintenanceTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  completedDate   DateTime
+  technicianId    String
+  technicianName  String   @db.VarChar(255)
+  
+  actualDuration  Float    // in hours
+  
+  // Spare parts used
+  spareParts      Json     // Array of {productId, productName, quantity, unitCost, totalCost}
+  
+  // Costs
+  laborCost       Float
+  partsCost       Float
+  totalCost       Float
+  
+  // Work details
+  workPerformed   String   @db.Text
+  findings        String?  @db.Text
+  recommendations String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([taskId])
+  @@index([assetId])
+  @@index([completedDate])
+}
+
+// Asset Health Monitoring model
+model AssetHealth {
+  id              String   @id @default(uuid())
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  healthScore     Float    // 0-100
+  status          String   @db.VarChar(50) // excellent, good, fair, poor, critical
+  
+  // Metrics
+  metrics         Json     // Array of {metricName, value, unit, timestamp, status}
+  
+  // Inspection dates
+  lastInspectionDate DateTime?
+  nextInspectionDate DateTime?
+  
+  // Reliability metrics
+  mtbf            Float?   // Mean Time Between Failures (hours)
+  mttr            Float?   // Mean Time To Repair (hours)
+  availability    Float?   // Percentage
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@index([assetId])
+  @@index([healthScore])
+  @@index([status])
+}
+
+// Asset Utilization Tracking model
+model AssetUtilization {
+  id              String   @id @default(uuid())
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  
+  period          DateTime @db.Date // Month/Year
+  
+  // Hours tracking
+  totalHours      Float    // Total hours in period
+  operationalHours Float
+  maintenanceHours Float
+  downtimeHours   Float
+  
+  // Calculated metrics
+  utilizationRate Float    // Percentage (operationalHours / totalHours * 100)
+  efficiency      Float    // Percentage
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([assetId, period])
+  @@index([assetId])
+  @@index([period])
+}
+
+// Plant Shutdown Planning model
+model PlantShutdown {
+  id              String   @id @default(uuid())
+  shutdownNumber  String   @unique @db.VarChar(100)
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  // Schedule
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Status
+  status          String   @default("planned") @db.VarChar(50) // planned, in_progress, completed, cancelled
+  
+  // Assets and tasks
+  assets          Json     // Array of {assetId, assetName, maintenanceTasks, estimatedDuration, assignedTechnician, status}
+  
+  // Costs
+  totalEstimatedCost Float
+  actualCost      Float?
+  
+  // Progress
+  completionPercentage Float @default(0)
+  
+  notes           String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([status])
+  @@index([startDate])
+}
+
+// ─── Project Systems Module ────────────────────────────────
+
+// Project model
+model Project {
+  id              String   @id @default(uuid())
+  projectNumber   String   @unique @db.VarChar(100)
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  // Project classification
+  projectType     String   @db.VarChar(50) // internal, customer_project, capital_project, research
+  status          String   @default("planning") @db.VarChar(50) // planning, active, on_hold, completed, cancelled
+  
+  // Timeline
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Budget and costs
+  budget          Float
+  actualCost      Float    @default(0)
+  
+  // Project structure (stored as JSON for flexibility)
+  phases          Json     // Array of ProjectPhase objects
+  resources       Json     // Array of ResourceAllocation objects
+  milestones      Json     // Array of Milestone objects
+  
+  // Customer information
+  customerId      String?
+  customerName    String?  @db.VarChar(255)
+  
+  // Project manager
+  projectManagerId   String?
+  projectManagerName String? @db.VarChar(255)
+  
+  notes           String?  @db.Text
+  
+  // Relations
+  costs           ProjectCost[]
+  evmReports      ProjectEVM[]
+  invoices        ProjectInvoice[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([status])
+  @@index([projectType])
+  @@index([projectManagerId])
+  @@index([customerId])
+  @@index([startDate])
+}
+
+// Project Cost Tracking model
+model ProjectCost {
+  id              String   @id @default(uuid())
+  projectId       String
+  
+  // Cost details
+  costType        String   @db.VarChar(50) // labor, material, equipment, overhead, other
+  description     String   @db.Text
+  amount          Float
+  date            DateTime
+  
+  // References
+  phaseId         String?  @db.VarChar(100) // Reference to phase in Project.phases JSON
+  taskId          String?  @db.VarChar(100) // Reference to task in phase
+  resourceId      String?  @db.VarChar(100) // Reference to resource in Project.resources JSON
+  invoiceId       String?  // Reference to external invoice
+  
+  notes           String?  @db.Text
+  
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([projectId, date])
+  @@index([costType])
+  @@index([date])
+}
+
+// Earned Value Management (EVM) model
+model ProjectEVM {
+  id              String   @id @default(uuid())
+  projectId       String
+  reportDate      DateTime
+  
+  // EVM Metrics (stored as JSON for flexibility)
+  metrics         Json     // Contains: PV, EV, AC, CV, SV, CPI, SPI, EAC, ETC, VAC, BAC
+  
+  completionPercentage Float
+  notes           String?  @db.Text
+  
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([projectId, reportDate])
+  @@index([reportDate])
+}
+
+// Project Invoice model
+model ProjectInvoice {
+  id              String   @id @default(uuid())
+  invoiceNumber   String   @unique @db.VarChar(100)
+  projectId       String
+  
+  // Customer information
+  customerId      String
+  customerName    String   @db.VarChar(255)
+  
+  // Billing details
+  billingType     String   @db.VarChar(50) // time_and_materials, milestone, fixed_price
+  startDate       DateTime
+  endDate         DateTime
+  
+  // Amounts
+  subtotal        Float
+  taxAmount       Float    @default(0)
+  total           Float
+  
+  // Status
+  status          String   @default("draft") @db.VarChar(50) // draft, sent, paid, overdue, cancelled
+  dueDate         DateTime
+  paidDate        DateTime?
+  
+  // Line items (stored as JSON)
+  lineItems       Json     // Array of ProjectInvoiceLineItem objects
+  
+  notes           String?  @db.Text
+  
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([projectId])
+  @@index([status])
+  @@index([customerId])
+  @@index([dueDate])
+}
+
+// Project Template model
+model ProjectTemplate {
+  id              String   @id @default(uuid())
+  name            String   @db.VarChar(255)
+  description     String?  @db.Text
+  
+  projectType     String   @db.VarChar(50) // internal, customer_project, capital_project, research
+  defaultDuration Int      // in days
+  
+  // Template structure (stored as JSON)
+  phases          Json     // Array of phase templates
+  milestones      Json     // Array of milestone templates
+  
+  isActive        Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdBy       String?
+  updatedBy       String?
+  
+  @@index([projectType, isActive])
+}

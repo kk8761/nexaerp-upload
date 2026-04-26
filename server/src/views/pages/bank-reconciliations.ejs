@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <%- pageStyles %>
+  <style>
+    .reconciliation-container {
+      max-width: 1400px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    
+    .page-header h1 {
+      font-size: 2rem;
+      color: #1a1a1a;
+    }
+    
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .accounts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-top: 2rem;
+    }
+    
+    .account-card {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      transition: all 0.3s;
+    }
+    
+    .account-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    }
+    
+    .account-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+    
+    .account-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .account-number {
+      font-size: 0.875rem;
+      color: #666;
+      margin-top: 0.25rem;
+    }
+    
+    .account-balance {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #667eea;
+    }
+    
+    .account-details {
+      margin: 1rem 0;
+      padding: 1rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    
+    .detail-label {
+      color: #666;
+      font-size: 0.875rem;
+    }
+    
+    .detail-value {
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .account-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
+    
+    .btn-sm {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+    }
+    
+    .btn-secondary {
+      background: #e9ecef;
+      color: #495057;
+    }
+    
+    .btn-secondary:hover {
+      background: #dee2e6;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: #666;
+    }
+    
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body class="<%= bodyClass %>">
+  <%- include('../partials/header') %>
+  
+  <div class="reconciliation-container">
+    <div class="page-header">
+      <h1>🏦 Bank Reconciliations</h1>
+      <button class="btn btn-primary" onclick="showImportModal()">
+        📤 Import Bank Statement
+      </button>
+    </div>
+    
+    <% if (bankAccounts && bankAccounts.length > 0) { %>
+      <div class="accounts-grid">
+        <% bankAccounts.forEach(account => { %>
+          <div class="account-card">
+            <div class="account-header">
+              <div>
+                <div class="account-name"><%= account.accountName %></div>
+                <div class="account-number"><%= account.bankName %> • <%= account.accountNumber %></div>
+              </div>
+              <div class="account-balance">
+                <%= account.currency %> <%= account.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) %>
+              </div>
+            </div>
+            
+            <div class="account-details">
+              <div class="detail-row">
+                <span class="detail-label">Status</span>
+                <span class="detail-value">
+                  <%= account.isActive ? '✅ Active' : '❌ Inactive' %>
+                </span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">GL Account</span>
+                <span class="detail-value">
+                  <%= account.glAccount ? account.glAccount.accountCode : 'Not Linked' %>
+                </span>
+              </div>
+            </div>
+            
+            <div class="account-actions">
+              <button class="btn btn-secondary btn-sm" onclick="viewStatements('<%= account.id %>')">
+                📋 View Statements
+              </button>
+              <button class="btn btn-primary btn-sm" onclick="importStatement('<%= account.id %>')">
+                📥 Import
+              </button>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+    <% } else { %>
+      <div class="empty-state">
+        <div class="empty-state-icon">🏦</div>
+        <h2>No Bank Accounts Found</h2>
+        <p>Create a bank account to start reconciling transactions.</p>
+        <button class="btn btn-primary" onclick="createBankAccount()">
+          ➕ Create Bank Account
+        </button>
+      </div>
+    <% } %>
+  </div>
+  
+  <%- include('../partials/footer') %>
+  
+  <script>
+    function showImportModal() {
+      alert('Import modal will be implemented');
+    }
+    
+    function viewStatements(accountId) {
+      // Navigate to statements list
+      window.location.href = `/finance/bank-statements?accountId=${accountId}`;
+    }
+    
+    function importStatement(accountId) {
+      // Navigate to import page
+      window.location.href = `/finance/bank-statements/import?accountId=${accountId}`;
+    }
+    
+    function createBankAccount() {
+      // Navigate to create bank account page
+      window.location.href = '/finance/bank-accounts/new';
+    }
+  </script>
+  
+  <%- pageScripts %>
+</body>
+</html>

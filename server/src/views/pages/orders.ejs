@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Order Management - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+  <style>
+    .orders-container {
+      padding: 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: var(--primary, #3b82f6);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark, #2563eb);
+    }
+
+    .btn-secondary {
+      background: var(--secondary, #6b7280);
+      color: white;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .filters-section {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary, #4b5563);
+    }
+
+    .form-control {
+      padding: 0.625rem;
+      border: 1px solid var(--border, #d1d5db);
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    .orders-table {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead {
+      background: var(--bg-secondary, #f9fafb);
+    }
+
+    th {
+      padding: 1rem;
+      text-align: left;
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--text-secondary, #6b7280);
+      border-bottom: 1px solid var(--border, #e5e7eb);
+    }
+
+    td {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border, #e5e7eb);
+      font-size: 0.875rem;
+    }
+
+    tbody tr {
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    tbody tr:hover {
+      background: var(--bg-hover, #f9fafb);
+    }
+
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    .status-draft { background: #e5e7eb; color: #374151; }
+    .status-confirmed { background: #dbeafe; color: #1e40af; }
+    .status-processing { background: #fef3c7; color: #92400e; }
+    .status-shipped { background: #e0e7ff; color: #3730a3; }
+    .status-delivered { background: #d1fae5; color: #065f46; }
+    .status-completed { background: #d1fae5; color: #065f46; }
+    .status-cancelled { background: #fee2e2; color: #991b1b; }
+
+    .payment-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    .payment-paid { background: #d1fae5; color: #065f46; }
+    .payment-pending { background: #fef3c7; color: #92400e; }
+    .payment-partial { background: #fef3c7; color: #92400e; }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+    }
+
+    .pagination button {
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border, #d1d5db);
+      background: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pagination .page-info {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-secondary, #6b7280);
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+
+  <div class="orders-container">
+    <div class="page-header">
+      <h1>Order Management</h1>
+      <div class="header-actions">
+        <a href="/orders/new" class="btn btn-primary">+ Create Order</a>
+      </div>
+    </div>
+
+    <div id="error-message" class="error" style="display: none;"></div>
+
+    <div class="stats-grid" id="statsGrid">
+      <div class="stat-card">
+        <div class="stat-label">Total Orders</div>
+        <div class="stat-value" id="totalOrders">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Total Revenue</div>
+        <div class="stat-value" id="totalRevenue">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending Orders</div>
+        <div class="stat-value" id="pendingOrders">-</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Completed Orders</div>
+        <div class="stat-value" id="completedOrders">-</div>
+      </div>
+    </div>
+
+    <div class="filters-section">
+      <div class="filters-grid">
+        <div class="form-group">
+          <label for="search">Search</label>
+          <input type="text" id="search" class="form-control" placeholder="Order number, customer...">
+        </div>
+        <div class="form-group">
+          <label for="statusFilter">Status</label>
+          <select id="statusFilter" class="form-control">
+            <option value="">All Statuses</option>
+            <option value="draft">Draft</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="processing">Processing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="paymentStatusFilter">Payment Status</label>
+          <select id="paymentStatusFilter" class="form-control">
+            <option value="">All</option>
+            <option value="paid">Paid</option>
+            <option value="pending">Pending</option>
+            <option value="partial">Partial</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="orders-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Order No</th>
+            <th>Customer</th>
+            <th>Date</th>
+            <th>Items</th>
+            <th>Total</th>
+            <th>Status</th>
+            <th>Payment</th>
+          </tr>
+        </thead>
+        <tbody id="ordersTableBody">
+          <tr>
+            <td colspan="7" class="loading">Loading orders...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <script>
+    let currentPage = 1;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadStatistics();
+      loadOrders();
+    });
+
+    async function loadStatistics() {
+      try {
+        const response = await fetch('/api/orders/statistics', {
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load statistics');
+
+        const data = await response.json();
+        const stats = data.data;
+
+        document.getElementById('totalOrders').textContent = stats.totalOrders;
+        document.getElementById('totalRevenue').textContent = `₹${stats.totalRevenue.toFixed(2)}`;
+        document.getElementById('pendingOrders').textContent = stats.pendingOrders;
+        document.getElementById('completedOrders').textContent = stats.completedOrders;
+      } catch (error) {
+        console.error('Error loading statistics:', error);
+      }
+    }
+
+    async function loadOrders(page = 1) {
+      try {
+        const search = document.getElementById('search').value;
+        const status = document.getElementById('statusFilter').value;
+        const paymentStatus = document.getElementById('paymentStatusFilter').value;
+
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: '20'
+        });
+
+        if (search) params.append('search', search);
+        if (status) params.append('status', status);
+        if (paymentStatus) params.append('paymentStatus', paymentStatus);
+
+        const response = await fetch(`/api/orders?${params.toString()}`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load orders');
+
+        const data = await response.json();
+        renderOrders(data.data.orders);
+        renderPagination(data.data.pagination);
+        currentPage = page;
+      } catch (error) {
+        showError('Failed to load orders: ' + error.message);
+      }
+    }
+
+    function renderOrders(orders) {
+      const tbody = document.getElementById('ordersTableBody');
+      
+      if (orders.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="empty-state">
+              <h3>No orders found</h3>
+              <p>Try adjusting your filters or create a new order</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = orders.map(order => {
+        const date = new Date(order.createdAt).toLocaleDateString();
+        const itemCount = order.items?.length || 0;
+
+        return `
+          <tr onclick="viewOrder('${order.id}')">
+            <td><strong>${escapeHtml(order.orderNo)}</strong></td>
+            <td>${escapeHtml(order.customerName)}</td>
+            <td>${date}</td>
+            <td>${itemCount} item${itemCount !== 1 ? 's' : ''}</td>
+            <td><strong>₹${order.total.toFixed(2)}</strong></td>
+            <td><span class="status-badge status-${order.status}">${order.status}</span></td>
+            <td><span class="payment-badge payment-${order.paymentStatus}">${order.paymentStatus}</span></td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderPagination(pagination) {
+      const paginationDiv = document.getElementById('pagination');
+      
+      paginationDiv.innerHTML = `
+        <button onclick="loadOrders(${pagination.page - 1})" ${pagination.page === 1 ? 'disabled' : ''}>
+          Previous
+        </button>
+        <span class="page-info">Page ${pagination.page} of ${pagination.pages}</span>
+        <button onclick="loadOrders(${pagination.page + 1})" ${pagination.page === pagination.pages ? 'disabled' : ''}>
+          Next
+        </button>
+      `;
+    }
+
+    function applyFilters() {
+      loadOrders(1);
+    }
+
+    function viewOrder(orderId) {
+      window.location.href = `/orders/${orderId}`;
+    }
+
+    function showError(message) {
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

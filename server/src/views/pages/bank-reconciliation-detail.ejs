@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %></title>
+  <%- pageStyles %>
+  <style>
+    .reconciliation-detail {
+      max-width: 1600px;
+      margin: 2rem auto;
+      padding: 0 2rem;
+    }
+    
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+    
+    .statement-info {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.5rem;
+    }
+    
+    .info-item {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .info-label {
+      font-size: 0.875rem;
+      color: #666;
+      margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .reconciliation-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .transaction-panel {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #e9ecef;
+    }
+    
+    .panel-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    
+    .panel-count {
+      background: #667eea;
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+    
+    .transaction-list {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    .transaction-item {
+      padding: 1rem;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .transaction-item:hover {
+      border-color: #667eea;
+      background: #f8f9ff;
+    }
+    
+    .transaction-item.selected {
+      border-color: #667eea;
+      background: #f0f2ff;
+      border-width: 2px;
+    }
+    
+    .transaction-item.matched {
+      background: #d4edda;
+      border-color: #28a745;
+    }
+    
+    .transaction-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 0.5rem;
+    }
+    
+    .transaction-date {
+      font-size: 0.875rem;
+      color: #666;
+    }
+    
+    .transaction-amount {
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+    
+    .amount-debit {
+      color: #dc3545;
+    }
+    
+    .amount-credit {
+      color: #28a745;
+    }
+    
+    .transaction-description {
+      font-size: 0.875rem;
+      color: #495057;
+      margin-bottom: 0.5rem;
+    }
+    
+    .transaction-reference {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+    
+    .match-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+    }
+    
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    
+    .reconciliation-summary {
+      background: white;
+      border-radius: 12px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .summary-row:last-child {
+      border-bottom: none;
+      font-weight: 700;
+      font-size: 1.125rem;
+      padding-top: 1rem;
+      border-top: 2px solid #1a1a1a;
+    }
+    
+    .difference {
+      color: #dc3545;
+    }
+    
+    .difference.zero {
+      color: #28a745;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body class="<%= bodyClass %>">
+  <%- include('../partials/header') %>
+  
+  <div class="reconciliation-detail">
+    <div class="page-header">
+      <h1>🔄 Bank Reconciliation - <%= statement.statementNo %></h1>
+      <div>
+        <button class="btn btn-secondary" onclick="window.history.back()">← Back</button>
+        <button class="btn btn-primary" onclick="autoMatch()">🤖 Auto Match</button>
+        <button class="btn btn-success" onclick="completeReconciliation()">✅ Complete</button>
+      </div>
+    </div>
+    
+    <div class="statement-info">
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">Bank Account</span>
+          <span class="info-value"><%= statement.bankAccount.accountName %></span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Statement Date</span>
+          <span class="info-value"><%= new Date(statement.statementDate).toLocaleDateString() %></span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Opening Balance</span>
+          <span class="info-value"><%= statement.openingBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %></span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Closing Balance</span>
+          <span class="info-value"><%= statement.closingBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %></span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="reconciliation-grid">
+      <!-- Bank Transactions -->
+      <div class="transaction-panel">
+        <div class="panel-header">
+          <span class="panel-title">🏦 Bank Transactions</span>
+          <span class="panel-count"><%= unmatchedBankItems.length %> Unmatched</span>
+        </div>
+        
+        <div class="transaction-list" id="bankTransactions">
+          <% if (unmatchedBankItems.length > 0) { %>
+            <% unmatchedBankItems.forEach(transaction => { %>
+              <div class="transaction-item" data-id="<%= transaction.id %>" data-type="bank" onclick="selectBankTransaction(this)">
+                <div class="transaction-header">
+                  <span class="transaction-date"><%= new Date(transaction.transactionDate).toLocaleDateString() %></span>
+                  <span class="transaction-amount <%= transaction.debit > 0 ? 'amount-debit' : 'amount-credit' %>">
+                    <%= transaction.debit > 0 ? '-' : '+' %><%= (transaction.debit || transaction.credit).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %>
+                  </span>
+                </div>
+                <div class="transaction-description"><%= transaction.description %></div>
+                <% if (transaction.referenceNo) { %>
+                  <div class="transaction-reference">Ref: <%= transaction.referenceNo %></div>
+                <% } %>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <div class="empty-state">
+              <p>✅ All bank transactions matched!</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+      
+      <!-- Book Transactions (Payments) -->
+      <div class="transaction-panel">
+        <div class="panel-header">
+          <span class="panel-title">📚 Book Transactions</span>
+          <span class="panel-count"><%= unmatchedBookItems.length %> Unmatched</span>
+        </div>
+        
+        <div class="transaction-list" id="bookTransactions">
+          <% if (unmatchedBookItems.length > 0) { %>
+            <% unmatchedBookItems.forEach(payment => { %>
+              <div class="transaction-item" data-id="<%= payment.id %>" data-type="book" onclick="selectBookTransaction(this)">
+                <div class="transaction-header">
+                  <span class="transaction-date"><%= new Date(payment.paymentDate).toLocaleDateString() %></span>
+                  <span class="transaction-amount amount-credit">
+                    <%= payment.amount.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %>
+                  </span>
+                </div>
+                <div class="transaction-description">
+                  Payment <%= payment.paymentNo %> - <%= payment.paymentMethod %>
+                </div>
+                <% if (payment.referenceNo) { %>
+                  <div class="transaction-reference">Ref: <%= payment.referenceNo %></div>
+                <% } %>
+                <% if (payment.invoice) { %>
+                  <div class="transaction-reference">Invoice: <%= payment.invoice.invoiceNo %></div>
+                <% } %>
+              </div>
+            <% }); %>
+          <% } else { %>
+            <div class="empty-state">
+              <p>✅ All book transactions matched!</p>
+            </div>
+          <% } %>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Matched Transactions -->
+    <div class="transaction-panel">
+      <div class="panel-header">
+        <span class="panel-title">✅ Matched Transactions</span>
+        <span class="panel-count"><%= matchedTransactions.length %></span>
+      </div>
+      
+      <div class="transaction-list">
+        <% if (matchedTransactions.length > 0) { %>
+          <% matchedTransactions.forEach(transaction => { %>
+            <div class="transaction-item matched">
+              <div class="transaction-header">
+                <span class="transaction-date"><%= new Date(transaction.transactionDate).toLocaleDateString() %></span>
+                <span class="transaction-amount <%= transaction.debit > 0 ? 'amount-debit' : 'amount-credit' %>">
+                  <%= transaction.debit > 0 ? '-' : '+' %><%= (transaction.debit || transaction.credit).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %>
+                </span>
+              </div>
+              <div class="transaction-description"><%= transaction.description %></div>
+              <div class="match-actions">
+                <button class="btn btn-danger" onclick="unmatch('<%= transaction.id %>')">❌ Unmatch</button>
+              </div>
+            </div>
+          <% }); %>
+        <% } else { %>
+          <div class="empty-state">
+            <p>No matched transactions yet. Use auto-match or manually select transactions to match.</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+    
+    <!-- Reconciliation Summary -->
+    <div class="reconciliation-summary">
+      <h3>Reconciliation Summary</h3>
+      <div class="summary-row">
+        <span>Statement Balance</span>
+        <span><%= statement.closingBalance.toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %></span>
+      </div>
+      <div class="summary-row">
+        <span>Book Balance</span>
+        <span><%= (statement.bankAccount.glAccount?.balance || statement.bankAccount.balance).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %></span>
+      </div>
+      <div class="summary-row">
+        <span>Difference</span>
+        <span class="difference <%= Math.abs(statement.closingBalance - (statement.bankAccount.glAccount?.balance || statement.bankAccount.balance)) < 0.01 ? 'zero' : '' %>">
+          <%= (statement.closingBalance - (statement.bankAccount.glAccount?.balance || statement.bankAccount.balance)).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) %>
+        </span>
+      </div>
+    </div>
+  </div>
+  
+  <%- include('../partials/footer') %>
+  
+  <script>
+    const API_URL = '<%= process.env.API_URL || "http://localhost:5000/api" %>';
+    const statementId = '<%= statement.id %>';
+    let selectedBankTransaction = null;
+    let selectedBookTransaction = null;
+    
+    function selectBankTransaction(element) {
+      // Deselect previous
+      document.querySelectorAll('[data-type="bank"]').forEach(el => el.classList.remove('selected'));
+      
+      // Select current
+      element.classList.add('selected');
+      selectedBankTransaction = element.dataset.id;
+      
+      // If book transaction is also selected, enable match button
+      checkMatchReady();
+    }
+    
+    function selectBookTransaction(element) {
+      // Deselect previous
+      document.querySelectorAll('[data-type="book"]').forEach(el => el.classList.remove('selected'));
+      
+      // Select current
+      element.classList.add('selected');
+      selectedBookTransaction = element.dataset.id;
+      
+      // If bank transaction is also selected, enable match button
+      checkMatchReady();
+    }
+    
+    function checkMatchReady() {
+      if (selectedBankTransaction && selectedBookTransaction) {
+        if (confirm('Match these transactions?')) {
+          matchTransactions();
+        }
+      }
+    }
+    
+    async function matchTransactions() {
+      try {
+        const response = await fetch(`${API_URL}/accounting/bank-transactions/${selectedBankTransaction}/match`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            matchType: 'payment',
+            matchId: selectedBookTransaction
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ Transactions matched successfully!');
+          window.location.reload();
+        } else {
+          alert('❌ Failed to match transactions: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error matching transactions:', error);
+        alert('❌ Error matching transactions');
+      }
+    }
+    
+    async function unmatch(transactionId) {
+      if (!confirm('Unmatch this transaction?')) return;
+      
+      try {
+        const response = await fetch(`${API_URL}/accounting/bank-transactions/${transactionId}/unmatch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ Transaction unmatched successfully!');
+          window.location.reload();
+        } else {
+          alert('❌ Failed to unmatch transaction: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error unmatching transaction:', error);
+        alert('❌ Error unmatching transaction');
+      }
+    }
+    
+    async function autoMatch() {
+      try {
+        const response = await fetch(`${API_URL}/accounting/bank-statements/${statementId}/enhanced-match`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert(`✅ Auto-matched ${data.matches.length} transactions!\nFound ${data.suggestions.length} suggestions.`);
+          window.location.reload();
+        } else {
+          alert('❌ Auto-match failed: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error auto-matching:', error);
+        alert('❌ Error during auto-match');
+      }
+    }
+    
+    async function completeReconciliation() {
+      const unmatchedCount = <%= unmatchedBankItems.length %> + <%= unmatchedBookItems.length %>;
+      
+      if (unmatchedCount > 0) {
+        if (!confirm(`There are ${unmatchedCount} unmatched transactions. Complete reconciliation anyway?`)) {
+          return;
+        }
+      }
+      
+      try {
+        const response = await fetch(`${API_URL}/accounting/bank-reconciliations`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bankAccountId: '<%= statement.bankAccountId %>',
+            statementId: statementId,
+            reconciliationDate: new Date().toISOString()
+          })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+          alert('✅ Reconciliation completed successfully!');
+          window.location.href = '/finance/bank-reconciliations';
+        } else {
+          alert('❌ Failed to complete reconciliation: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Error completing reconciliation:', error);
+        alert('❌ Error completing reconciliation');
+      }
+    }
+  </script>
+  
+  <%- pageScripts %>
+</body>
+</html>

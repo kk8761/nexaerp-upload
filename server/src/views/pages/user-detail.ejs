@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Details - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+  <style>
+    .detail-container {
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: var(--primary, #3b82f6);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: var(--secondary, #6b7280);
+      color: white;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .detail-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .detail-card h2 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.75rem 0;
+      border-bottom: 1px solid var(--border, #e5e7eb);
+    }
+
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .detail-label {
+      font-weight: 500;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .detail-value {
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .status-active {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status-inactive {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .roles-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .role-item {
+      padding: 0.75rem;
+      background: var(--bg-secondary, #f9fafb);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .role-name {
+      font-weight: 500;
+    }
+
+    .role-description {
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .sessions-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 1rem;
+    }
+
+    .sessions-table th {
+      text-align: left;
+      padding: 0.75rem;
+      background: var(--bg-secondary, #f9fafb);
+      font-weight: 600;
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .sessions-table td {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border, #e5e7eb);
+      font-size: 0.875rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+
+  <div class="detail-container">
+    <div class="page-header">
+      <h1>User Details</h1>
+      <div class="header-actions">
+        <a href="/users" class="btn btn-secondary">Back to List</a>
+        <button class="btn btn-primary" onclick="editUser()">Edit User</button>
+      </div>
+    </div>
+
+    <div id="error-message" class="error" style="display: none;"></div>
+    <div id="loading" class="loading">Loading user details...</div>
+
+    <div id="userDetails" style="display: none;">
+      <div class="detail-grid">
+        <div class="detail-card">
+          <h2>Basic Information</h2>
+          <div class="detail-row">
+            <span class="detail-label">Name</span>
+            <span class="detail-value" id="userName"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Email</span>
+            <span class="detail-value" id="userEmail"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Phone</span>
+            <span class="detail-value" id="userPhone"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Status</span>
+            <span class="detail-value" id="userStatus"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Last Login</span>
+            <span class="detail-value" id="userLastLogin"></span>
+          </div>
+        </div>
+
+        <div class="detail-card">
+          <h2>Business Information</h2>
+          <div class="detail-row">
+            <span class="detail-label">Business Name</span>
+            <span class="detail-value" id="businessName"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Business Type</span>
+            <span class="detail-value" id="businessType"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Plan</span>
+            <span class="detail-value" id="userPlan"></span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Legacy Role</span>
+            <span class="detail-value" id="legacyRole"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-card" style="margin-top: 2rem;">
+        <h2>Assigned Roles</h2>
+        <ul class="roles-list" id="rolesList"></ul>
+      </div>
+
+      <div class="detail-card" style="margin-top: 2rem;">
+        <h2>Active Sessions</h2>
+        <table class="sessions-table">
+          <thead>
+            <tr>
+              <th>IP Address</th>
+              <th>User Agent</th>
+              <th>Last Activity</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const userId = '<%= userId %>';
+
+    document.addEventListener('DOMContentLoaded', () => {
+      loadUserDetails();
+    });
+
+    async function loadUserDetails() {
+      try {
+        const response = await fetch(`/api/users/${userId}`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load user details');
+        }
+
+        const result = await response.json();
+        const user = result.data;
+
+        // Basic Information
+        document.getElementById('userName').textContent = user.name || '-';
+        document.getElementById('userEmail').textContent = user.email || '-';
+        document.getElementById('userPhone').textContent = user.phone || '-';
+        document.getElementById('userStatus').innerHTML = `
+          <span class="status-badge ${user.isActive ? 'status-active' : 'status-inactive'}">
+            ${user.isActive ? 'Active' : 'Inactive'}
+          </span>
+        `;
+        document.getElementById('userLastLogin').textContent = user.lastLogin 
+          ? new Date(user.lastLogin).toLocaleString() 
+          : 'Never';
+
+        // Business Information
+        document.getElementById('businessName').textContent = user.businessName || '-';
+        document.getElementById('businessType').textContent = user.businessType || '-';
+        document.getElementById('userPlan').textContent = user.plan || 'free';
+        document.getElementById('legacyRole').textContent = user.role || '-';
+
+        // Roles
+        const rolesList = document.getElementById('rolesList');
+        if (user.userRoles && user.userRoles.length > 0) {
+          rolesList.innerHTML = user.userRoles.map(ur => `
+            <li class="role-item">
+              <div>
+                <div class="role-name">${ur.role.name}</div>
+                <div class="role-description">${ur.role.description || ''}</div>
+              </div>
+            </li>
+          `).join('');
+        } else {
+          rolesList.innerHTML = '<li class="role-item">No roles assigned</li>';
+        }
+
+        // Sessions
+        const sessionsBody = document.getElementById('sessionsTableBody');
+        if (user.sessions && user.sessions.length > 0) {
+          sessionsBody.innerHTML = user.sessions.map(session => `
+            <tr>
+              <td>${session.ipAddress || '-'}</td>
+              <td>${session.userAgent ? session.userAgent.substring(0, 50) + '...' : '-'}</td>
+              <td>${new Date(session.lastActivity).toLocaleString()}</td>
+              <td>${new Date(session.createdAt).toLocaleString()}</td>
+            </tr>
+          `).join('');
+        } else {
+          sessionsBody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No active sessions</td></tr>';
+        }
+
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('userDetails').style.display = 'block';
+      } catch (error) {
+        document.getElementById('loading').style.display = 'none';
+        showError('Failed to load user details: ' + error.message);
+      }
+    }
+
+    function editUser() {
+      window.location.href = `/users/${userId}/edit`;
+    }
+
+    function showError(message) {
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+    }
+  </script>
+</body>
+</html>

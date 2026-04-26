@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexaERP Enterprise | Dashboard</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="dark-theme">
+    
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay" class="login-overlay">
+        <div class="login-box stat-card">
+            <div class="logo" style="justify-content: center; margin-bottom: 24px;">
+                <i class="fa-brands fa-nfc-symbol" style="font-size: 32px;"></i>
+                <h2 style="font-size: 32px;">Nexa<span>ERP</span></h2>
+            </div>
+            <p style="text-align: center; color: var(--text-secondary); margin-bottom: 24px;">Enterprise Login</p>
+            <form id="login-form">
+                <input type="email" id="email" placeholder="Email Address" required style="width: 100%; padding: 12px; margin-bottom: 16px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-base); color: white;">
+                <input type="password" id="password" placeholder="Password" required style="width: 100%; padding: 12px; margin-bottom: 24px; border-radius: 8px; border: 1px solid var(--glass-border); background: var(--bg-base); color: white;">
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center;">Sign In <i class="fa-solid fa-arrow-right"></i></button>
+            </form>
+            <p id="login-error" style="color: var(--danger); text-align: center; margin-top: 16px; display: none;">Invalid credentials</p>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container" style="display: none;">
+        
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fa-brands fa-nfc-symbol"></i>
+                    <h2>Nexa<span>ERP</span></h2>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <p class="nav-label">MAIN MENU</p>
+                <ul>
+                    <li class="active"><a href="#" data-view="dashboard"><i class="fa-solid fa-chart-pie"></i> Dashboard</a></li>
+                    <li><a href="#" data-view="crm"><i class="fa-solid fa-users"></i> CRM & Sales</a></li>
+                    <li><a href="#" data-view="inventory"><i class="fa-solid fa-boxes-stacked"></i> Inventory</a></li>
+                    <li><a href="#" data-view="accounting"><i class="fa-solid fa-file-invoice-dollar"></i> Accounting</a></li>
+                </ul>
+
+                <p class="nav-label">OPERATIONS</p>
+                <ul>
+                    <li><a href="#" data-view="hrms"><i class="fa-solid fa-user-tie"></i> HRMS</a></li>
+                    <li><a href="#" data-view="manufacturing"><i class="fa-solid fa-industry"></i> Manufacturing</a></li>
+                </ul>
+
+                <p class="nav-label">GOVERNANCE</p>
+                <ul>
+                    <li><a href="#" data-view="dms"><i class="fa-solid fa-folder-open"></i> Documents</a></li>
+                    <li><a href="#" data-view="workflows"><i class="fa-solid fa-code-branch"></i> Workflows</a></li>
+                    <li><a href="#" data-view="integrations"><i class="fa-solid fa-plug"></i> Integrations</a></li>
+                </ul>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar">
+                        <img src="https://ui-avatars.com/api/?name=Admin+User&background=6366f1&color=fff" alt="Admin">
+                    </div>
+                    <div class="user-info">
+                        <h4>Admin User</h4>
+                        <p>Super Administrator</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT -->
+        <main class="main-content">
+            
+            <!-- HEADER -->
+            <header class="top-header">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" placeholder="Search across ERP modules (Ctrl+K)...">
+                </div>
+                
+                <div class="header-actions">
+                    <button class="icon-btn"><i class="fa-solid fa-bell"></i><span class="badge">3</span></button>
+                    <button class="icon-btn"><i class="fa-solid fa-gear"></i></button>
+                    <button class="btn-primary" id="btn-sync-db"><i class="fa-solid fa-database"></i> Database Sync</button>
+                </div>
+            </header>
+
+            <!-- DYNAMIC VIEW CONTAINER -->
+            <div id="view-container" class="view-container">
+                <!-- Views will be injected here via app.js -->
+            </div>
+
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

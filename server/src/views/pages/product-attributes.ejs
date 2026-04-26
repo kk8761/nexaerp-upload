@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Attributes - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+</head>
+<body>
+  <%- include('../partials/header') %>
+
+  <div style="padding: 2rem; max-width: 1200px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+      <h1>Product Attributes</h1>
+      <div>
+        <a href="/products" class="btn btn-secondary" style="margin-right: 1rem;">Back to Products</a>
+        <button class="btn btn-primary" onclick="showCreateModal()">+ Add Attribute</button>
+      </div>
+    </div>
+
+    <div id="attributesContainer">
+      <p style="text-align: center; padding: 3rem; color: #6b7280;">Loading attributes...</p>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', loadAttributes);
+
+    async function loadAttributes() {
+      try {
+        const response = await fetch('/api/products/attributes', {
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load attributes');
+
+        const data = await response.json();
+        renderAttributes(data.data.attributes);
+      } catch (error) {
+        document.getElementById('attributesContainer').innerHTML = 
+          `<p style="text-align: center; color: #dc2626;">Error: ${error.message}</p>`;
+      }
+    }
+
+    function renderAttributes(attributes) {
+      const container = document.getElementById('attributesContainer');
+      
+      if (attributes.length === 0) {
+        container.innerHTML = '<p style="text-align: center; padding: 3rem; color: #6b7280;">No attributes found</p>';
+        return;
+      }
+
+      container.innerHTML = `
+        <table style="width: 100%; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <thead style="background: #f9fafb;">
+            <tr>
+              <th style="padding: 1rem; text-align: left;">Name</th>
+              <th style="padding: 1rem; text-align: left;">Data Type</th>
+              <th style="padding: 1rem; text-align: left;">Required</th>
+              <th style="padding: 1rem; text-align: left;">Options</th>
+              <th style="padding: 1rem; text-align: left;">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${attributes.map(attr => `
+              <tr style="border-bottom: 1px solid #e5e7eb;">
+                <td style="padding: 1rem;">${attr.name}</td>
+                <td style="padding: 1rem;">${attr.dataType}</td>
+                <td style="padding: 1rem;">${attr.isRequired ? 'Yes' : 'No'}</td>
+                <td style="padding: 1rem;">${attr.options?.join(', ') || '-'}</td>
+                <td style="padding: 1rem;">
+                  <button onclick="editAttribute('${attr.id}')" style="margin-right: 0.5rem;">Edit</button>
+                  <button onclick="deleteAttribute('${attr.id}')">Delete</button>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    }
+
+    function showCreateModal() {
+      alert('Create attribute modal - To be implemented');
+    }
+
+    function editAttribute(id) {
+      alert('Edit attribute: ' + id);
+    }
+
+    async function deleteAttribute(id) {
+      if (!confirm('Are you sure?')) return;
+      
+      try {
+        const response = await fetch(`/api/products/attributes/${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete');
+        
+        loadAttributes();
+      } catch (error) {
+        alert('Error: ' + error.message);
+      }
+    }
+  </script>
+</body>
+</html>

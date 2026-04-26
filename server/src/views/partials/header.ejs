@@ -1,0 +1,37 @@
+<!-- Header Navigation -->
+<% if (showHeader !== false) { %>
+<header class="site-header" role="banner">
+  <nav class="header-nav">
+    <div class="header-logo">
+      <a href="/" class="logo-link">
+        <div class="logo-icon">
+          <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+            <rect width="40" height="40" rx="10" fill="url(#logoGrad)"/>
+            <path d="M10 20 L20 10 L30 20 L20 30 Z" fill="white" fill-opacity="0.9"/>
+            <path d="M15 20 L20 15 L25 20 L20 25 Z" fill="white"/>
+            <defs>
+              <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
+                <stop offset="0%" stop-color="#6366f1"/>
+                <stop offset="100%" stop-color="#8b5cf6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <div class="logo-text">
+          <span class="logo-nexa">Nexa</span><span class="logo-erp">ERP</span>
+        </div>
+      </a>
+    </div>
+    
+    <div class="header-actions">
+      <% if (user) { %>
+        <a href="/dashboard" class="btn btn-primary">Dashboard</a>
+        <a href="/logout" class="btn btn-ghost">Logout</a>
+      <% } else { %>
+        <a href="/login" class="btn btn-ghost">Sign In</a>
+        <a href="/register" class="btn btn-primary">Get Started</a>
+      <% } %>
+    </div>
+  </nav>
+</header>
+<% } %>

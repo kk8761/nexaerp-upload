@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexaERP — Smart Business Management Platform</title>
+  <meta name="description" content="NexaERP is a free, production-grade SaaS ERP platform for small businesses including grocery stores, pharmacies, restaurants, hostels, and schools." />
+  <meta name="keywords" content="ERP, business management, grocery store, inventory, billing, POS, small business" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/design-system.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body class="auth-page">
+
+  <!-- Animated Background -->
+  <div class="bg-aurora">
+    <div class="aurora-orb aurora-orb-1"></div>
+    <div class="aurora-orb aurora-orb-2"></div>
+    <div class="aurora-orb aurora-orb-3"></div>
+    <div class="grid-overlay"></div>
+  </div>
+
+  <!-- Auth Container -->
+  <div class="auth-container">
+    <!-- Brand Side -->
+    <div class="auth-brand-panel">
+      <div class="brand-content">
+        <div class="brand-logo-wrap">
+          <div class="brand-icon">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+              <rect width="40" height="40" rx="12" fill="url(#logoGrad)"/>
+              <path d="M10 20 L20 10 L30 20 L20 30 Z" fill="white" fill-opacity="0.9"/>
+              <path d="M15 20 L20 15 L25 20 L20 25 Z" fill="white"/>
+              <defs>
+                <linearGradient id="logoGrad" x1="0" y1="0" x2="40" y2="40">
+                  <stop offset="0%" stop-color="#6366f1"/>
+                  <stop offset="100%" stop-color="#8b5cf6"/>
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+          <div class="brand-name">
+            <span class="brand-nexa">Nexa</span><span class="brand-erp">ERP</span>
+          </div>
+        </div>
+        <h1 class="brand-headline">Business Intelligence<br/><span class="gradient-text">Reimagined</span></h1>
+        <p class="brand-sub">The all-in-one ERP platform built for modern small businesses. Inventory, billing, payroll, analytics — unified and intelligent.</p>
+
+        <div class="brand-stats">
+          <div class="stat-item">
+            <span class="stat-number">15+</span>
+            <span class="stat-label">Modules</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">Real-Time</span>
+            <span class="stat-label">Analytics</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">AI</span>
+            <span class="stat-label">Powered</span>
+          </div>
+        </div>
+
+        <div class="brand-industries">
+          <span class="industry-tag">🛒 Grocery</span>
+          <span class="industry-tag">💊 Pharmacy</span>
+          <span class="industry-tag">🍽️ Restaurant</span>
+          <span class="industry-tag">🏨 Hostel</span>
+          <span class="industry-tag">🎓 School</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auth Form Side -->
+    <div class="auth-form-panel">
+      <div class="auth-form-wrap">
+        <!-- Tab Switcher -->
+        <div class="auth-tabs" role="tablist">
+          <button class="auth-tab active" id="tab-login" role="tab" aria-selected="true" onclick="switchAuthTab('login')">Sign In</button>
+          <button class="auth-tab" id="tab-register" role="tab" aria-selected="false" onclick="switchAuthTab('register')">Create Account</button>
+        </div>
+
+        <!-- Login Form -->
+        <div id="form-login" class="auth-form-section active">
+          <h2 class="form-title">Welcome back</h2>
+          <p class="form-subtitle">Sign in to your NexaERP dashboard</p>
+
+          <form id="loginForm" onsubmit="handleLogin(event)" novalidate>
+            <div class="form-group">
+              <label for="login-email" class="form-label">Email Address</label>
+              <div class="input-wrap">
+                <span class="input-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                </span>
+                <input type="email" id="login-email" class="form-input" placeholder="you@business.com" required autocomplete="email"/>
+              </div>
+              <span class="field-error" id="login-email-err"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="login-password" class="form-label">Password</label>
+              <div class="input-wrap">
+                <span class="input-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </span>
+                <input type="password" id="login-password" class="form-input" placeholder="••••••••" required autocomplete="current-password"/>
+                <button type="button" class="toggle-password" onclick="togglePasswordVisibility('login-password')" aria-label="Toggle password visibility">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <span class="field-error" id="login-password-err"></span>
+            </div>
+
+            <div class="form-row">
+              <label class="checkbox-label">
+                <input type="checkbox" id="remember-me" />
+                <span class="checkmark"></span>
+                Remember me
+              </label>
+              <a href="#" class="forgot-link" onclick="showForgotPassword()">Forgot password?</a>
+            </div>
+
+            <button type="submit" class="btn-primary btn-full btn-lg" id="login-btn">
+              <span class="btn-text">Sign In</span>
+              <span class="btn-loader hidden"></span>
+            </button>
+
+            <div class="divider"><span>or continue with demo</span></div>
+
+            <button type="button" class="btn-demo btn-full" onclick="loginDemo('owner')">
+              <span>👑</span> Try as Store Owner
+            </button>
+            <button type="button" class="btn-demo btn-full mt-2" onclick="loginDemo('cashier')">
+              <span>🧾</span> Try as Cashier
+            </button>
+          </form>
+        </div>
+
+        <!-- Register Form -->
+        <div id="form-register" class="auth-form-section">
+          <h2 class="form-title">Get started free</h2>
+          <p class="form-subtitle">Create your NexaERP account today</p>
+
+          <form id="registerForm" onsubmit="handleRegister(event)" novalidate>
+            <div class="form-row-2col">
+              <div class="form-group">
+                <label for="reg-fname" class="form-label">First Name</label>
+                <input type="text" id="reg-fname" class="form-input" placeholder="John" required />
+                <span class="field-error" id="reg-fname-err"></span>
+              </div>
+              <div class="form-group">
+                <label for="reg-lname" class="form-label">Last Name</label>
+                <input type="text" id="reg-lname" class="form-input" placeholder="Doe" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="reg-business" class="form-label">Business Name</label>
+              <div class="input-wrap">
+                <span class="input-icon">🏪</span>
+                <input type="text" id="reg-business" class="form-input" placeholder="My Grocery Store" required />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="reg-type" class="form-label">Business Type</label>
+              <select id="reg-type" class="form-select" required>
+                <option value="">Select business type</option>
+                <option value="grocery">🛒 Grocery Store</option>
+                <option value="pharmacy">💊 Pharmacy</option>
+                <option value="restaurant">🍽️ Restaurant</option>
+                <option value="hostel">🏨 Hostel / Hotel</option>
+                <option value="school">🎓 School / Institution</option>
+                <option value="retail">🏪 General Retail</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="reg-email" class="form-label">Business Email</label>
+              <input type="email" id="reg-email" class="form-input" placeholder="owner@business.com" required />
+              <span class="field-error" id="reg-email-err"></span>
+            </div>
+
+            <div class="form-group">
+              <label for="reg-phone" class="form-label">Phone Number</label>
+              <input type="tel" id="reg-phone" class="form-input" placeholder="+91 9876543210" />
+            </div>
+
+            <div class="form-group">
+              <label for="reg-password" class="form-label">Password</label>
+              <div class="input-wrap">
+                <input type="password" id="reg-password" class="form-input" placeholder="Min 8 characters" required />
+                <button type="button" class="toggle-password" onclick="togglePasswordVisibility('reg-password')">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+              <div class="password-strength" id="password-strength"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="agree-terms" required />
+                <span class="checkmark"></span>
+                I agree to the <a href="#" class="link">Terms of Service</a> and <a href="#" class="link">Privacy Policy</a>
+              </label>
+            </div>
+
+            <button type="submit" class="btn-primary btn-full btn-lg" id="register-btn">
+              <span class="btn-text">Create Free Account</span>
+              <span class="btn-loader hidden"></span>
+            </button>
+          </form>
+        </div>
+
+        <p class="auth-footer">NexaERP is free to use &middot; No credit card required</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/three-logo.js"></script>
+</body>
+</html>

@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workflow Designer - NexaERP</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f7fa;
+      color: #2c3e50;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .header {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .header h1 {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+
+    .workflow-builder {
+      display: grid;
+      grid-template-columns: 250px 1fr 300px;
+      gap: 20px;
+      height: calc(100vh - 200px);
+    }
+
+    .sidebar {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow-y: auto;
+    }
+
+    .sidebar h3 {
+      font-size: 16px;
+      margin-bottom: 15px;
+      color: #34495e;
+    }
+
+    .component-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .component-item {
+      padding: 12px;
+      background: #ecf0f1;
+      border-radius: 6px;
+      cursor: move;
+      transition: all 0.2s;
+      border: 2px solid transparent;
+    }
+
+    .component-item:hover {
+      background: #3498db;
+      color: white;
+      transform: translateX(5px);
+    }
+
+    .canvas {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .canvas-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #95a5a6;
+      font-size: 18px;
+    }
+
+    .workflow-step {
+      background: #fff;
+      border: 2px solid #3498db;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      position: relative;
+      transition: all 0.2s;
+    }
+
+    .workflow-step:hover {
+      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+    }
+
+    .workflow-step.condition {
+      border-color: #f39c12;
+    }
+
+    .workflow-step.action {
+      border-color: #27ae60;
+    }
+
+    .step-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .step-type {
+      font-weight: 600;
+      font-size: 14px;
+      text-transform: uppercase;
+      color: #7f8c8d;
+    }
+
+    .step-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #3498db;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2980b9;
+    }
+
+    .btn-success {
+      background: #27ae60;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #229954;
+    }
+
+    .btn-danger {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c0392b;
+    }
+
+    .btn-small {
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    .properties-panel {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow-y: auto;
+    }
+
+    .properties-panel h3 {
+      font-size: 16px;
+      margin-bottom: 15px;
+      color: #34495e;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #34495e;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .template-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+
+    .template-card {
+      background: white;
+      border: 2px solid #ecf0f1;
+      border-radius: 8px;
+      padding: 15px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .template-card:hover {
+      border-color: #3498db;
+      box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+    }
+
+    .template-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    .template-name {
+      font-weight: 600;
+      margin-bottom: 5px;
+    }
+
+    .template-description {
+      font-size: 12px;
+      color: #7f8c8d;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      padding: 30px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-header h2 {
+      font-size: 20px;
+    }
+
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #7f8c8d;
+    }
+
+    .close-modal:hover {
+      color: #2c3e50;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🔄 Workflow Designer</h1>
+      <p>Create automated workflows without coding</p>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="showTemplates()">📋 Templates</button>
+      <button class="btn btn-success" onclick="saveWorkflow()">💾 Save Workflow</button>
+      <button class="btn btn-primary" onclick="testWorkflow()">🧪 Test</button>
+      <button class="btn btn-danger" onclick="clearCanvas()">🗑️ Clear</button>
+    </div>
+
+    <div class="workflow-builder">
+      <!-- Left Sidebar: Components -->
+      <div class="sidebar">
+        <h3>Components</h3>
+        <div class="component-list">
+          <div class="component-item" draggable="true" data-type="trigger">
+            🎯 Trigger
+          </div>
+          <div class="component-item" draggable="true" data-type="condition">
+            ❓ Condition
+          </div>
+          <div class="component-item" draggable="true" data-type="action-email">
+            📧 Send Email
+          </div>
+          <div class="component-item" draggable="true" data-type="action-notification">
+            🔔 Send Notification
+          </div>
+          <div class="component-item" draggable="true" data-type="action-record">
+            📝 Create/Update Record
+          </div>
+          <div class="component-item" draggable="true" data-type="action-webhook">
+            🌐 Call Webhook
+          </div>
+        </div>
+      </div>
+
+      <!-- Center: Canvas -->
+      <div class="canvas" id="canvas">
+        <div class="canvas-empty">
+          Drag components here to build your workflow
+        </div>
+      </div>
+
+      <!-- Right Sidebar: Properties -->
+      <div class="properties-panel" id="properties">
+        <h3>Properties</h3>
+        <p style="color: #95a5a6;">Select a component to edit its properties</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Template Modal -->
+  <div class="modal" id="templateModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Workflow Templates</h2>
+        <button class="close-modal" onclick="closeTemplates()">&times;</button>
+      </div>
+      <div class="template-grid" id="templateGrid">
+        <!-- Templates will be loaded here -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let workflowSteps = [];
+    let selectedStep = null;
+
+    // Drag and drop functionality
+    document.querySelectorAll('.component-item').forEach(item => {
+      item.addEventListener('dragstart', (e) => {
+        e.dataTransfer.setData('componentType', item.dataset.type);
+      });
+    });
+
+    const canvas = document.getElementById('canvas');
+    canvas.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    canvas.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const componentType = e.dataTransfer.getData('componentType');
+      addStep(componentType);
+    });
+
+    function addStep(type) {
+      const step = {
+        id: Date.now(),
+        type: type,
+        config: {}
+      };
+
+      workflowSteps.push(step);
+      renderCanvas();
+    }
+
+    function renderCanvas() {
+      if (workflowSteps.length === 0) {
+        canvas.innerHTML = '<div class="canvas-empty">Drag components here to build your workflow</div>';
+        return;
+      }
+
+      canvas.innerHTML = workflowSteps.map((step, index) => `
+        <div class="workflow-step ${step.type.includes('condition') ? 'condition' : 'action'}" 
+             data-step-id="${step.id}"
+             onclick="selectStep(${step.id})">
+          <div class="step-header">
+            <span class="step-type">Step ${index + 1}: ${getStepLabel(step.type)}</span>
+            <div class="step-actions">
+              <button class="btn btn-danger btn-small" onclick="removeStep(${step.id}); event.stopPropagation();">
+                Remove
+              </button>
+            </div>
+          </div>
+          <div class="step-content">
+            ${renderStepContent(step)}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function getStepLabel(type) {
+      const labels = {
+        'trigger': 'Trigger',
+        'condition': 'Condition',
+        'action-email': 'Send Email',
+        'action-notification': 'Send Notification',
+        'action-record': 'Record Operation',
+        'action-webhook': 'Call Webhook'
+      };
+      return labels[type] || type;
+    }
+
+    function renderStepContent(step) {
+      if (!step.config || Object.keys(step.config).length === 0) {
+        return '<p style="color: #95a5a6; font-size: 14px;">Click to configure</p>';
+      }
+      return '<p style="color: #27ae60; font-size: 14px;">✓ Configured</p>';
+    }
+
+    function selectStep(stepId) {
+      selectedStep = workflowSteps.find(s => s.id === stepId);
+      renderProperties();
+    }
+
+    function renderProperties() {
+      const props = document.getElementById('properties');
+      
+      if (!selectedStep) {
+        props.innerHTML = '<h3>Properties</h3><p style="color: #95a5a6;">Select a component to edit its properties</p>';
+        return;
+      }
+
+      props.innerHTML = `
+        <h3>Properties: ${getStepLabel(selectedStep.type)}</h3>
+        ${getPropertiesForm(selectedStep)}
+      `;
+    }
+
+    function getPropertiesForm(step) {
+      switch (step.type) {
+        case 'trigger':
+          return `
+            <div class="form-group">
+              <label>Trigger Type</label>
+              <select id="triggerType" onchange="updateStepConfig('triggerType', this.value)">
+                <option value="record_created">Record Created</option>
+                <option value="record_updated">Record Updated</option>
+                <option value="field_changed">Field Changed</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="manual">Manual</option>
+                <option value="webhook">Webhook</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Entity</label>
+              <input type="text" id="entity" placeholder="e.g., product, order" 
+                     onchange="updateStepConfig('entity', this.value)">
+            </div>
+          `;
+        case 'condition':
+          return `
+            <div class="form-group">
+              <label>Field</label>
+              <input type="text" id="field" placeholder="e.g., stock, total" 
+                     onchange="updateStepConfig('field', this.value)">
+            </div>
+            <div class="form-group">
+              <label>Operator</label>
+              <select id="operator" onchange="updateStepConfig('operator', this.value)">
+                <option value="equals">Equals</option>
+                <option value="not_equals">Not Equals</option>
+                <option value="greater_than">Greater Than</option>
+                <option value="less_than">Less Than</option>
+                <option value="contains">Contains</option>
+                <option value="is_empty">Is Empty</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Value</label>
+              <input type="text" id="value" placeholder="Comparison value" 
+                     onchange="updateStepConfig('value', this.value)">
+            </div>
+          `;
+        case 'action-notification':
+          return `
+            <div class="form-group">
+              <label>Title</label>
+              <input type="text" id="title" placeholder="Notification title" 
+                     onchange="updateStepConfig('title', this.value)">
+            </div>
+            <div class="form-group">
+              <label>Message</label>
+              <textarea id="message" placeholder="Notification message" 
+                        onchange="updateStepConfig('message', this.value)"></textarea>
+            </div>
+            <div class="form-group">
+              <label>Priority</label>
+              <select id="priority" onchange="updateStepConfig('priority', this.value)">
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </div>
+          `;
+        default:
+          return '<p>Configuration form for this component type is not yet implemented.</p>';
+      }
+    }
+
+    function updateStepConfig(key, value) {
+      if (selectedStep) {
+        selectedStep.config[key] = value;
+        renderCanvas();
+      }
+    }
+
+    function removeStep(stepId) {
+      workflowSteps = workflowSteps.filter(s => s.id !== stepId);
+      if (selectedStep && selectedStep.id === stepId) {
+        selectedStep = null;
+      }
+      renderCanvas();
+      renderProperties();
+    }
+
+    function clearCanvas() {
+      if (confirm('Are you sure you want to clear the workflow?')) {
+        workflowSteps = [];
+        selectedStep = null;
+        renderCanvas();
+        renderProperties();
+      }
+    }
+
+    async function saveWorkflow() {
+      const name = prompt('Enter workflow name:');
+      if (!name) return;
+
+      const workflow = {
+        name: name,
+        description: '',
+        isActive: false,
+        trigger: workflowSteps.find(s => s.type === 'trigger')?.config || {},
+        steps: workflowSteps.filter(s => s.type !== 'trigger').map((step, index) => ({
+          stepOrder: index + 1,
+          stepType: step.type.includes('condition') ? 'condition' : 'action',
+          condition: step.type === 'condition' ? step.config : undefined,
+          action: step.type.startsWith('action-') ? {
+            type: step.type.replace('action-', ''),
+            config: step.config
+          } : undefined
+        }))
+      };
+
+      try {
+        const response = await fetch('/api/workflows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(workflow)
+        });
+
+        if (response.ok) {
+          alert('Workflow saved successfully!');
+        } else {
+          alert('Failed to save workflow');
+        }
+      } catch (error) {
+        console.error('Error saving workflow:', error);
+        alert('Error saving workflow');
+      }
+    }
+
+    async function showTemplates() {
+      const modal = document.getElementById('templateModal');
+      modal.classList.add('active');
+
+      try {
+        const response = await fetch('/api/workflows/templates');
+        const templates = await response.json();
+
+        const grid = document.getElementById('templateGrid');
+        grid.innerHTML = templates.map(template => `
+          <div class="template-card" onclick="useTemplate('${template.id}')">
+            <div class="template-icon">${template.icon || '📋'}</div>
+            <div class="template-name">${template.name}</div>
+            <div class="template-description">${template.description || ''}</div>
+          </div>
+        `).join('');
+      } catch (error) {
+        console.error('Error loading templates:', error);
+      }
+    }
+
+    function closeTemplates() {
+      document.getElementById('templateModal').classList.remove('active');
+    }
+
+    async function useTemplate(templateId) {
+      try {
+        const response = await fetch(`/api/workflows/templates/${templateId}/instantiate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+
+        if (response.ok) {
+          alert('Workflow created from template!');
+          closeTemplates();
+        } else {
+          alert('Failed to create workflow from template');
+        }
+      } catch (error) {
+        console.error('Error using template:', error);
+        alert('Error using template');
+      }
+    }
+
+    function testWorkflow() {
+      alert('Test mode: This would execute the workflow with sample data');
+    }
+  </script>
+</body>
+</html>

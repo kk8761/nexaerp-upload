@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Management - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+  <style>
+    .projects-container {
+      padding: 2rem;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2rem;
+    }
+
+    .page-header h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .btn-primary {
+      background: var(--primary, #3b82f6);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--primary-dark, #2563eb);
+    }
+
+    .filters-section {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      margin-bottom: 2rem;
+    }
+
+    .filters-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group label {
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary, #4b5563);
+    }
+
+    .form-control {
+      padding: 0.625rem;
+      border: 1px solid var(--border, #d1d5db);
+      border-radius: 6px;
+      font-size: 0.875rem;
+    }
+
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .project-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+
+    .project-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .project-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 1rem;
+    }
+
+    .project-number {
+      font-size: 0.75rem;
+      color: var(--text-secondary, #6b7280);
+      font-family: monospace;
+    }
+
+    .project-name {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin: 0.25rem 0;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .status-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    .status-planning {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+
+    .status-active {
+      background: #d1fae5;
+      color: #065f46;
+    }
+
+    .status-on_hold {
+      background: #fef3c7;
+      color: #92400e;
+    }
+
+    .status-completed {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+
+    .status-cancelled {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .project-info {
+      margin: 1rem 0;
+      font-size: 0.875rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .project-info-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: #e5e7eb;
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 1rem 0;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--primary, #3b82f6);
+      transition: width 0.3s;
+    }
+
+    .project-budget {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border, #e5e7eb);
+      font-size: 0.875rem;
+    }
+
+    .budget-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .budget-label {
+      color: var(--text-secondary, #6b7280);
+      font-size: 0.75rem;
+    }
+
+    .budget-value {
+      font-weight: 600;
+      color: var(--text-primary, #1a1a1a);
+    }
+
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--text-secondary, #6b7280);
+    }
+
+    .empty-state-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+
+  <div class="projects-container">
+    <div class="page-header">
+      <h1>Project Management</h1>
+      <div class="header-actions">
+        <a href="/projects/new" class="btn btn-primary">+ New Project</a>
+      </div>
+    </div>
+
+    <div id="error-message" class="error" style="display: none;"></div>
+
+    <div class="filters-section">
+      <div class="filters-grid">
+        <div class="form-group">
+          <label for="statusFilter">Status</label>
+          <select id="statusFilter" class="form-control">
+            <option value="">All Statuses</option>
+            <option value="planning">Planning</option>
+            <option value="active">Active</option>
+            <option value="on_hold">On Hold</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="typeFilter">Project Type</label>
+          <select id="typeFilter" class="form-control">
+            <option value="">All Types</option>
+            <option value="internal">Internal</option>
+            <option value="customer_project">Customer Project</option>
+            <option value="capital_project">Capital Project</option>
+            <option value="research">Research</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>&nbsp;</label>
+          <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="projectsGrid" class="projects-grid">
+      <div class="loading">Loading projects...</div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      loadProjects();
+    });
+
+    async function loadProjects() {
+      try {
+        const status = document.getElementById('statusFilter').value;
+        const projectType = document.getElementById('typeFilter').value;
+
+        const params = new URLSearchParams();
+        if (status) params.append('status', status);
+        if (projectType) params.append('projectType', projectType);
+
+        const response = await fetch(`/api/projects?${params.toString()}`, {
+          credentials: 'include'
+        });
+
+        if (!response.ok) throw new Error('Failed to load projects');
+
+        const projects = await response.json();
+        renderProjects(projects);
+      } catch (error) {
+        showError('Failed to load projects: ' + error.message);
+      }
+    }
+
+    function renderProjects(projects) {
+      const grid = document.getElementById('projectsGrid');
+      
+      if (projects.length === 0) {
+        grid.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <h3>No projects found</h3>
+            <p>Create your first project to get started</p>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = projects.map(project => {
+        const completion = calculateCompletion(project);
+        const statusClass = project.status.replace('_', '');
+        const statusLabel = project.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        return `
+          <div class="project-card" onclick="viewProject('${project.id}')">
+            <div class="project-header">
+              <div>
+                <div class="project-number">${project.projectNumber}</div>
+                <div class="project-name">${escapeHtml(project.name)}</div>
+              </div>
+              <span class="status-badge status-${statusClass}">${statusLabel}</span>
+            </div>
+            
+            <div class="project-info">
+              <div class="project-info-row">
+                <span>Type:</span>
+                <span>${formatProjectType(project.projectType)}</span>
+              </div>
+              <div class="project-info-row">
+                <span>Timeline:</span>
+                <span>${formatDate(project.startDate)} - ${formatDate(project.endDate)}</span>
+              </div>
+              ${project.projectManagerName ? `
+                <div class="project-info-row">
+                  <span>Manager:</span>
+                  <span>${escapeHtml(project.projectManagerName)}</span>
+                </div>
+              ` : ''}
+            </div>
+
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${completion}%"></div>
+            </div>
+            <div style="text-align: center; font-size: 0.75rem; color: #6b7280; margin-top: 0.25rem;">
+              ${completion}% Complete
+            </div>
+
+            <div class="project-budget">
+              <div class="budget-item">
+                <span class="budget-label">Budget</span>
+                <span class="budget-value">₹${formatCurrency(project.budget)}</span>
+              </div>
+              <div class="budget-item">
+                <span class="budget-label">Actual Cost</span>
+                <span class="budget-value">₹${formatCurrency(project.actualCost)}</span>
+              </div>
+              <div class="budget-item">
+                <span class="budget-label">Variance</span>
+                <span class="budget-value" style="color: ${project.budget - project.actualCost >= 0 ? '#065f46' : '#991b1b'}">
+                  ₹${formatCurrency(project.budget - project.actualCost)}
+                </span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function calculateCompletion(project) {
+      // Simple calculation based on phases and tasks
+      if (!project.phases || project.phases.length === 0) {
+        return 0;
+      }
+
+      let totalTasks = 0;
+      let completedTasks = 0;
+
+      project.phases.forEach(phase => {
+        if (phase.tasks && phase.tasks.length > 0) {
+          phase.tasks.forEach(task => {
+            totalTasks++;
+            if (task.status === 'completed') {
+              completedTasks++;
+            }
+          });
+        }
+      });
+
+      return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+    }
+
+    function formatProjectType(type) {
+      return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('en-IN').format(amount);
+    }
+
+    function applyFilters() {
+      loadProjects();
+    }
+
+    function viewProject(projectId) {
+      window.location.href = `/projects/${projectId}`;
+    }
+
+    function showError(message) {
+      const errorDiv = document.getElementById('error-message');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+      setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 5000);
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>

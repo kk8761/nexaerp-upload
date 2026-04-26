@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Financial Statements - NexaERP</title>
+  <link rel="stylesheet" href="/css/design-system.css">
+  <link rel="stylesheet" href="/css/modules.css">
+  <style>
+    .statement-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    .tab {
+      padding: 0.75rem 1.5rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab:hover {
+      color: #333;
+      background: #f5f5f5;
+    }
+    .tab.active {
+      color: #1976d2;
+      border-bottom-color: #1976d2;
+    }
+    .statement-container {
+      background: white;
+      border-radius: 8px;
+      padding: 2rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .statement-header {
+      text-align: center;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #333;
+    }
+    .statement-header h2 {
+      margin: 0 0 0.5rem 0;
+      font-size: 1.5rem;
+    }
+    .statement-header .period {
+      color: #666;
+      font-size: 0.95rem;
+    }
+    .statement-section {
+      margin-bottom: 2rem;
+    }
+    .section-title {
+      font-weight: 600;
+      font-size: 1.1rem;
+      margin-bottom: 0.75rem;
+      color: #333;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .statement-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .statement-line.indent {
+      padding-left: 2rem;
+    }
+    .statement-line.total {
+      font-weight: 600;
+      border-top: 2px solid #333;
+      border-bottom: 2px solid #333;
+      margin-top: 0.5rem;
+      padding-top: 0.75rem;
+      padding-bottom: 0.75rem;
+    }
+    .statement-line.subtotal {
+      font-weight: 600;
+      border-top: 1px solid #666;
+      margin-top: 0.25rem;
+      padding-top: 0.5rem;
+    }
+    .amount {
+      font-family: 'Courier New', monospace;
+      text-align: right;
+      min-width: 120px;
+    }
+    .amount.negative {
+      color: #d32f2f;
+    }
+    .amount.positive {
+      color: #388e3c;
+    }
+    .date-filters {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+      align-items: flex-end;
+    }
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .filter-group label {
+      font-size: 0.875rem;
+      color: #666;
+      font-weight: 500;
+    }
+    .actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .statement-content {
+      display: none;
+    }
+    .statement-content.active {
+      display: block;
+    }
+    .loading {
+      text-align: center;
+      padding: 3rem;
+      color: #666;
+    }
+    .error-message {
+      background: #ffebee;
+      color: #c62828;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <%- include('../partials/header') %>
+  
+  <div class="container">
+    <div class="page-header">
+      <div>
+        <h1>Financial Statements</h1>
+        <p class="subtitle">View comprehensive financial reports including P&L, Balance Sheet, and Cash Flow</p>
+      </div>
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="exportToPDF()">
+          <span>📄</span> Export PDF
+        </button>
+        <button class="btn btn-secondary" onclick="exportToExcel()">
+          <span>📊</span> Export Excel
+        </button>
+      </div>
+    </div>
+
+    <!-- Date Filters -->
+    <div class="date-filters">
+      <div class="filter-group">
+        <label for="startDate">Start Date</label>
+        <input type="date" id="startDate" class="form-control">
+      </div>
+      <div class="filter-group">
+        <label for="endDate">End Date</label>
+        <input type="date" id="endDate" class="form-control">
+      </div>
+      <button class="btn btn-primary" onclick="loadStatements()">Generate</button>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+    <!-- Statement Tabs -->
+    <div class="statement-tabs">
+      <button class="tab active" onclick="switchTab('profitLoss')">Profit & Loss</button>
+      <button class="tab" onclick="switchTab('balanceSheet')">Balance Sheet</button>
+      <button class="tab" onclick="switchTab('cashFlow')">Cash Flow</button>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="loading" style="display: none;">
+      <div style="font-size: 2rem; margin-bottom: 1rem;">⏳</div>
+      <p>Generating financial statements...</p>
+    </div>
+
+    <!-- Profit & Loss Statement -->
+    <div id="profitLoss" class="statement-content active">
+      <div class="statement-container">
+        <div class="statement-header">
+          <h2>Profit & Loss Statement</h2>
+          <div class="period" id="plPeriod"></div>
+        </div>
+        <div id="plContent"></div>
+      </div>
+    </div>
+
+    <!-- Balance Sheet -->
+    <div id="balanceSheet" class="statement-content">
+      <div class="statement-container">
+        <div class="statement-header">
+          <h2>Balance Sheet</h2>
+          <div class="period" id="bsPeriod"></div>
+        </div>
+        <div id="bsContent"></div>
+      </div>
+    </div>
+
+    <!-- Cash Flow Statement -->
+    <div id="cashFlow" class="statement-content">
+      <div class="statement-container">
+        <div class="statement-header">
+          <h2>Cash Flow Statement</h2>
+          <div class="period" id="cfPeriod"></div>
+        </div>
+        <div id="cfContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <%- include('../partials/footer') %>
+
+  <script>
+    let currentStatements = null;
+
+    // Initialize with current fiscal year dates
+    function initializeDates() {
+      const today = new Date();
+      const startOfYear = new Date(today.getFullYear(), 0, 1);
+      const endOfYear = new Date(today.getFullYear(), 11, 31);
+      
+      document.getElementById('startDate').valueAsDate = startOfYear;
+      document.getElementById('endDate').valueAsDate = endOfYear;
+    }
+
+    async function loadStatements() {
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      
+      if (!startDate || !endDate) {
+        showError('Please select both start and end dates');
+        return;
+      }
+      
+      try {
+        document.getElementById('loadingState').style.display = 'block';
+        document.getElementById('errorMessage').style.display = 'none';
+        hideAllStatements();
+        
+        const response = await fetch(`/api/accounting/reports/financial-statements?startDate=${startDate}&endDate=${endDate}`);
+        const data = await response.json();
+        
+        if (data.success) {
+          currentStatements = data.statements;
+          renderProfitAndLoss(data.statements.profitAndLoss);
+          renderBalanceSheet(data.statements.balanceSheet);
+          renderCashFlow(data.statements.cashFlow);
+          showCurrentTab();
+        } else {
+          showError(data.message || 'Failed to generate financial statements');
+        }
+      } catch (error) {
+        console.error('Error loading statements:', error);
+        showError('Failed to load financial statements. Please try again.');
+      } finally {
+        document.getElementById('loadingState').style.display = 'none';
+      }
+    }
+
+    function renderProfitAndLoss(statement) {
+      const periodEl = document.getElementById('plPeriod');
+      const contentEl = document.getElementById('plContent');
+      
+      periodEl.textContent = `For the period ${formatDate(statement.period.startDate)} to ${formatDate(statement.period.endDate)}`;
+      
+      let html = '';
+      
+      // Revenue Section
+      html += '<div class="statement-section">';
+      html += '<div class="section-title">Revenue</div>';
+      statement.revenue.forEach(item => {
+        html += `<div class="statement-line indent">
+          <span>${item.accountName}</span>
+          <span class="amount">${formatCurrency(item.amount)}</span>
+        </div>`;
+      });
+      html += `<div class="statement-line subtotal">
+        <span>Total Revenue</span>
+        <span class="amount">${formatCurrency(statement.totalRevenue)}</span>
+      </div>`;
+      html += '</div>';
+      
+      // Cost of Goods Sold
+      if (statement.cogs.length > 0) {
+        html += '<div class="statement-section">';
+        html += '<div class="section-title">Cost of Goods Sold</div>';
+        statement.cogs.forEach(item => {
+          html += `<div class="statement-line indent">
+            <span>${item.accountName}</span>
+            <span class="amount">${formatCurrency(item.amount)}</span>
+          </div>`;
+        });
+        html += `<div class="statement-line subtotal">
+          <span>Total COGS</span>
+          <span class="amount">${formatCurrency(statement.totalCOGS)}</span>
+        </div>`;
+        html += '</div>';
+        
+        // Gross Profit
+        html += `<div class="statement-line subtotal">
+          <span>Gross Profit</span>
+          <span class="amount ${statement.grossProfit >= 0 ? 'positive' : 'negative'}">${formatCurrency(statement.grossProfit)}</span>
+        </div>`;
+      }
+      
+      // Expenses
+      html += '<div class="statement-section">';
+      html += '<div class="section-title">Operating Expenses</div>';
+      statement.expenses.forEach(item => {
+        html += `<div class="statement-line indent">
+          <span>${item.accountName}</span>
+          <span class="amount">${formatCurrency(item.amount)}</span>
+        </div>`;
+      });
+      html += `<div class="statement-line subtotal">
+        <span>Total Expenses</span>
+        <span class="amount">${formatCurrency(statement.totalExpenses)}</span>
+      </div>`;
+      html += '</div>';
+      
+      // Net Income
+      html += `<div class="statement-line total">
+        <span>Net Income</span>
+        <span class="amount ${statement.netIncome >= 0 ? 'positive' : 'negative'}">${formatCurrency(statement.netIncome)}</span>
+      </div>`;
+      
+      contentEl.innerHTML = html;
+    }
+
+    function renderBalanceSheet(statement) {
+      const periodEl = document.getElementById('bsPeriod');
+      const contentEl = document.getElementById('bsContent');
+      
+      periodEl.textContent = `As of ${formatDate(statement.asOfDate)}`;
+      
+      let html = '';
+      
+      // Assets
+      html += '<div class="statement-section">';
+      html += '<div class="section-title">Assets</div>';
+      statement.assets.forEach(item => {
+        html += `<div class="statement-line indent">
+          <span>${item.accountName}</span>
+          <span class="amount">${formatCurrency(item.amount)}</span>
+        </div>`;
+      });
+      html += `<div class="statement-line subtotal">
+        <span>Total Assets</span>
+        <span class="amount">${formatCurrency(statement.totalAssets)}</span>
+      </div>`;
+      html += '</div>';
+      
+      // Liabilities
+      html += '<div class="statement-section">';
+      html += '<div class="section-title">Liabilities</div>';
+      statement.liabilities.forEach(item => {
+        html += `<div class="statement-line indent">
+          <span>${item.accountName}</span>
+          <span class="amount">${formatCurrency(item.amount)}</span>
+        </div>`;
+      });
+      html += `<div class="statement-line subtotal">
+        <span>Total Liabilities</span>
+        <span class="amount">${formatCurrency(statement.totalLiabilities)}</span>
+      </div>`;
+      html += '</div>';
+      
+      // Equity
+      html += '<div class="statement-section">';
+      html += '<div class="section-title">Equity</div>';
+      statement.equity.forEach(item => {
+        html += `<div class="statement-line indent">
+          <span>${item.accountName}</span>
+          <span class="amount">${formatCurrency(item.amount)}</span>
+        </div>`;
+      });
+      html += `<div class="statement-line subtotal">
+        <span>Total Equity</span>
+        <span class="amount">${formatCurrency(statement.totalEquity)}</span>
+      </div>`;
+      html += '</div>';
+      
+      // Total Liabilities and Equity
+      html += `<div class="statement-line total">
+        <span>Total Liabilities & Equity</span>
+        <span class="amount">${formatCurrency(statement.totalLiabilitiesAndEquity)}</span>
+      </div>`;
+      
+      contentEl.innerHTML = html;
+    }
+
+    function renderCashFlow(statement) {
+      const periodEl = document.getElementById('cfPeriod');
+      const contentEl = document.getElementById('cfContent');
+      
+      periodEl.textContent = `For the period ${formatDate(statement.period.startDate)} to ${formatDate(statement.period.endDate)}`;
+      
+      let html = '';
+      
+      // Operating Activities
+      html += '<div class="statement-section">';
+      html += '<div class="section-title">Cash Flow from Operating Activities</div>';
+      statement.operating.forEach(item => {
+        html += `<div class="statement-line indent">
+          <span>${item.description}</span>
+          <span class="amount">${formatCurrency(item.amount)}</span>
+        </div>`;
+      });
+      html += `<div class="statement-line subtotal">
+        <span>Net Cash from Operating Activities</span>
+        <span class="amount ${statement.operatingCashFlow >= 0 ? 'positive' : 'negative'}">${formatCurrency(statement.operatingCashFlow)}</span>
+      </div>`;
+      html += '</div>';
+      
+      // Investing Activities
+      html += '<div class="statement-section">';
+      html += '<div class="section-title">Cash Flow from Investing Activities</div>';
+      if (statement.investing.length > 0) {
+        statement.investing.forEach(item => {
+          html += `<div class="statement-line indent">
+            <span>${item.description}</span>
+            <span class="amount">${formatCurrency(item.amount)}</span>
+          </div>`;
+        });
+      } else {
+        html += '<div class="statement-line indent"><span style="color: #999;">No investing activities</span></div>';
+      }
+      html += `<div class="statement-line subtotal">
+        <span>Net Cash from Investing Activities</span>
+        <span class="amount ${statement.investingCashFlow >= 0 ? 'positive' : 'negative'}">${formatCurrency(statement.investingCashFlow)}</span>
+      </div>`;
+      html += '</div>';
+      
+      // Financing Activities
+      html += '<div class="statement-section">';
+      html += '<div class="section-title">Cash Flow from Financing Activities</div>';
+      if (statement.financing.length > 0) {
+        statement.financing.forEach(item => {
+          html += `<div class="statement-line indent">
+            <span>${item.description}</span>
+            <span class="amount">${formatCurrency(item.amount)}</span>
+          </div>`;
+        });
+      } else {
+        html += '<div class="statement-line indent"><span style="color: #999;">No financing activities</span></div>';
+      }
+      html += `<div class="statement-line subtotal">
+        <span>Net Cash from Financing Activities</span>
+        <span class="amount ${statement.financingCashFlow >= 0 ? 'positive' : 'negative'}">${formatCurrency(statement.financingCashFlow)}</span>
+      </div>`;
+      html += '</div>';
+      
+      // Net Cash Flow
+      html += `<div class="statement-line total">
+        <span>Net Increase (Decrease) in Cash</span>
+        <span class="amount ${statement.netCashFlow >= 0 ? 'positive' : 'negative'}">${formatCurrency(statement.netCashFlow)}</span>
+      </div>`;
+      
+      contentEl.innerHTML = html;
+    }
+
+    function switchTab(tabName) {
+      // Update tab buttons
+      document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+      event.target.classList.add('active');
+      
+      // Show selected statement
+      document.querySelectorAll('.statement-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById(tabName).classList.add('active');
+    }
+
+    function hideAllStatements() {
+      document.querySelectorAll('.statement-content').forEach(content => {
+        content.style.display = 'none';
+      });
+    }
+
+    function showCurrentTab() {
+      document.querySelectorAll('.statement-content').forEach(content => {
+        content.style.display = content.classList.contains('active') ? 'block' : 'none';
+      });
+    }
+
+    function showError(message) {
+      const errorEl = document.getElementById('errorMessage');
+      errorEl.textContent = message;
+      errorEl.style.display = 'block';
+    }
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+      }).format(amount);
+    }
+
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    function exportToPDF() {
+      if (!currentStatements) {
+        showError('Please generate statements first');
+        return;
+      }
+      alert('PDF export functionality will be implemented with a PDF library like pdfmake or puppeteer');
+    }
+
+    function exportToExcel() {
+      if (!currentStatements) {
+        showError('Please generate statements first');
+        return;
+      }
+      alert('Excel export functionality will be implemented with a library like exceljs');
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      initializeDates();
+      loadStatements();
+    });
+  </script>
+</body>
+</html>
