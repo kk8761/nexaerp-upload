@@ -1,18 +1,4 @@
-# NexaERP
 
-**Production-grade SaaS ERP platform for small businesses**
-
-[![Netlify Status](https://api.netlify.com/api/v1/badges/nexaerp/deploy-status)](https://app.netlify.com/sites/nexaerp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-
-## 🚀 Live Demo
-> **[https://nexaerp.netlify.app](https://nexaerp.netlify.app)**
-
-**Demo Credentials** — Click "Try as Store Owner" or "Try as Cashier" on the login page.
-
----
-
-## ✨ Overview
 
 NexaERP is a free, investor-grade SaaS ERP platform built for modern small businesses. Starting with grocery stores and expandable to pharmacies, restaurants, hostels, and schools.
 
